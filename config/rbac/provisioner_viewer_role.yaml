@@ -1,0 +1,20 @@
+# permissions for end users to view provisioners.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: provisioner-viewer-role
+rules:
+- apiGroups:
+  - wasm.kwasm.sh
+  resources:
+  - provisioners
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - wasm.kwasm.sh
+  resources:
+  - provisioners/status
+  verbs:
+  - get
