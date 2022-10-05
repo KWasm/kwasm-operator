@@ -1,0 +1,24 @@
+# permissions for end users to edit provisioners.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: provisioner-editor-role
+rules:
+- apiGroups:
+  - wasm.kwasm.sh
+  resources:
+  - provisioners
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - wasm.kwasm.sh
+  resources:
+  - provisioners/status
+  verbs:
+  - get
