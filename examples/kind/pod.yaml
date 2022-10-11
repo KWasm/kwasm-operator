@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    module.wasm.image/variant: compat-smart
+  labels:
+    run: wasi-demo
+  name: wasi-demo
+spec:
+  containers:
+  - args:
+    - /wasi_example_main.wasm
+    - "50000000"
+    image: wasmedge/example-wasi:latest
+    name: wasi-demo
+  restartPolicy: Never
+  nodeSelector:
+    kwasm.sh/kwasm-provisioned: kind-worker
+  runtimeClassName: crun
