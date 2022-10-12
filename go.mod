@@ -1,4 +1,4 @@
-module github.com/kwasm/kwasm-provisioner-operator
+module github.com/kwasm/kwasm-operator
 
 go 1.18
 

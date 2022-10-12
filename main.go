@@ -32,7 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/kwasm/kwasm-provisioner-operator/controllers"
+	"github.com/kwasm/kwasm-operator/controllers"
 	//+kubebuilder:scaffold:imports
 )
 
