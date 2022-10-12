@@ -7,13 +7,14 @@ plugins:
 projectName: kwasm-provisioner-operator
 repo: github.com/kwasm/kwasm-provisioner-operator
 resources:
-- api:
-    crdVersion: v1
-    namespaced: true
-  controller: true
-  domain: kwasm.sh
-  group: wasm
-  kind: Provisioner
-  path: github.com/kwasm/kwasm-provisioner-operator/api/v1alpha1
-  version: v1alpha1
+- controller: true
+  group: batch
+  kind: External
+  path: k8s.io/api/batch/v1
+  version: v1
+- controller: true
+  group: batch
+  kind: Job
+  path: k8s.io/api/batch/v1
+  version: v1
 version: "3"
