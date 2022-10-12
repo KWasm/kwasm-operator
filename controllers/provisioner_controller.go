@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"os"
 	"time"
 
 	"github.com/rs/zerolog/log"
@@ -74,7 +75,7 @@ const (
 func (r *ProvisionerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.With().Str("node", req.Name).Logger()
 	node := &corev1.Node{}
-	r.Get(ctx, req.NamespacedName, node)
+
 	if err := r.Get(ctx, req.NamespacedName, node); err != nil {
 		if apierrors.IsNotFound(err) {
 			// we'll ignore not-found errors, since they can't be fixed by an immediate
@@ -82,7 +83,6 @@ func (r *ProvisionerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			// on deleted requests.
 			return ctrl.Result{}, nil
 		}
-		log.Err(err).Msg("Unable to update Node")
 		return ctrl.Result{}, err
 	}
 
@@ -120,8 +120,8 @@ func (r *ProvisionerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 		err := r.Delete(ctx, &batchv1.Job{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      req.Name + "-provision-wasm",
-				Namespace: "kwasm-provisioner-operator-system",
+				Name:      req.Name + "-provision-kwasm",
+				Namespace: os.Getenv("CONTROLLER_NAMESPACE"),
 			},
 		}, client.PropagationPolicy(metav1.DeletePropagationBackground))
 		if err != nil {
@@ -156,8 +156,9 @@ func (r *ProvisionerReconciler) deployJob(n *corev1.Node, req ctrl.Request) *bat
 
 	dep := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      req.Name + "-provision-wasm",
-			Namespace: "kwasm-provisioner-operator-system",
+			Name:      req.Name + "-provision-kwasm",
+			Namespace: os.Getenv("CONTROLLER_NAMESPACE"),
+			Labels:    map[string]string{"kwasm.sh/job": "true"},
 		},
 		Spec: batchv1.JobSpec{
 			Template: corev1.PodTemplateSpec{
@@ -174,7 +175,7 @@ func (r *ProvisionerReconciler) deployJob(n *corev1.Node, req ctrl.Request) *bat
 					}},
 					Containers: []corev1.Container{{
 						Image: "ghcr.io/kwasm/kwasm-node-installer:main",
-						Name:  "wasm-provision",
+						Name:  "kwasm-provision",
 						SecurityContext: &corev1.SecurityContext{
 							Privileged: &priv,
 						},
@@ -197,37 +198,40 @@ func (r *ProvisionerReconciler) deployJob(n *corev1.Node, req ctrl.Request) *bat
 		},
 	}
 	ctrl.SetControllerReference(n, dep, r.Scheme)
+
 	return dep
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ProvisionerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
-	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &batchv1.Job{}, ".metadata.name", func(rawObj client.Object) []string {
-		// grab the job object, extract the owner...
+	//if err := mgr.GetFieldIndexer().IndexField(context.Background(), &batchv1.Job{}, ".metadata.name", func(rawObj client.Object) []string {
+	// grab the job object, extract the owner...
 
-		job := rawObj.(*batchv1.Job)
-		owner := metav1.GetControllerOf(job)
-		if owner == nil {
-			return nil
-		}
-		_, finishedType := r.isJobFinished(job)
-		switch finishedType {
-		case "": // ongoing
-			log.Info().Msgf("Job %s is still Ongoing", job.Name)
-		case batchv1.JobFailed:
-			log.Info().Msgf("Job %s is still failing...", job.Name)
-		case batchv1.JobComplete:
-			log.Info().Msgf("Job %s is Completed. Happy WASMing", job.Name)
-		}
-		return []string{owner.Name}
-	}); err != nil {
-		return err
-	}
+	// 	job := rawObj.(*batchv1.Job)
+	// 	owner := metav1.GetControllerOf(job)
+	// 	if owner == nil {
+	// 		return nil
+	// 	}
+	// 	_, finishedType := r.isJobFinished(job)
+	// 	switch finishedType {
+	// 	case "": // ongoing
+	// 		log.Info().Msgf("Job %s is still Ongoing", job.Name)
+	// 		return nil
+	// 	case batchv1.JobFailed:
+	// 		log.Info().Msgf("Job %s is still failing...", job.Name)
+	// 		return nil
+	// 	case batchv1.JobComplete:
+	// 		log.Info().Msgf("Job %s is Completed. Happy WASMing", job.Name)
+	// 		return nil
+	// 	}
+	// 	return nil
+	// }); err != nil {
+	// 	return err
+	// }
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Node{}).
-		Owns(&batchv1.Job{}).
 		Complete(r)
 }
 
