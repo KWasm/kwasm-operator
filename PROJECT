@@ -4,8 +4,8 @@ layout:
 plugins:
   manifests.sdk.operatorframework.io/v2: {}
   scorecard.sdk.operatorframework.io/v2: {}
-projectName: kwasm-provisioner-operator
-repo: github.com/kwasm/kwasm-provisioner-operator
+projectName: kwasm-operator
+repo: github.com/kwasm/kwasm-operator
 resources:
 - controller: true
   group: batch

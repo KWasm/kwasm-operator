@@ -1,4 +1,4 @@
-# kwasm-provisioner-operator
+# kwasm-operator
 This Kubernetes Operators installs WebAssembly support on your Kubernetes Nodes
 
 ## Example
