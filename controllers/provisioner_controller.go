@@ -94,7 +94,7 @@ func (r *ProvisionerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	labelIsPresent := node.Labels[nodeNameLabel] == node.Name
 
 	if labelShouldBePresent == labelIsPresent {
-		// The desired state and actual state of the Pod are the same.
+		// The desired state and actual state of the Node are the same.
 		// No further action is required by the operator at this moment.
 
 		return ctrl.Result{}, nil
@@ -131,15 +131,12 @@ func (r *ProvisionerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	if err := r.Update(ctx, node); err != nil {
 		if apierrors.IsConflict(err) {
-			log.Info().Msg("Node IsConflict, Requeuing")
-			// The Pod has been updated since we read it.
+			// The Node has been updated since we read it.
 			// Requeue the Pod to try to reconciliate again.
 			return ctrl.Result{Requeue: true}, nil
 		}
 		if apierrors.IsNotFound(err) {
-			log.Info().Msg("Node IsNotFound, Requeuing")
-
-			// The Pod has been deleted since we read it.
+			// The Node has been deleted since we read it.
 			// Requeue the Pod to try to reconciliate again.
 			return ctrl.Result{Requeue: true}, nil
 		}
@@ -205,42 +202,7 @@ func (r *ProvisionerReconciler) deployJob(n *corev1.Node, req ctrl.Request) *bat
 // SetupWithManager sets up the controller with the Manager.
 func (r *ProvisionerReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
-	//if err := mgr.GetFieldIndexer().IndexField(context.Background(), &batchv1.Job{}, ".metadata.name", func(rawObj client.Object) []string {
-	// grab the job object, extract the owner...
-
-	// 	job := rawObj.(*batchv1.Job)
-	// 	owner := metav1.GetControllerOf(job)
-	// 	if owner == nil {
-	// 		return nil
-	// 	}
-	// 	_, finishedType := r.isJobFinished(job)
-	// 	switch finishedType {
-	// 	case "": // ongoing
-	// 		log.Info().Msgf("Job %s is still Ongoing", job.Name)
-	// 		return nil
-	// 	case batchv1.JobFailed:
-	// 		log.Info().Msgf("Job %s is still failing...", job.Name)
-	// 		return nil
-	// 	case batchv1.JobComplete:
-	// 		log.Info().Msgf("Job %s is Completed. Happy WASMing", job.Name)
-	// 		return nil
-	// 	}
-	// 	return nil
-	// }); err != nil {
-	// 	return err
-	// }
-
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Node{}).
 		Complete(r)
-}
-
-func (r *ProvisionerReconciler) isJobFinished(job *batchv1.Job) (bool, batchv1.JobConditionType) {
-	for _, c := range job.Status.Conditions {
-		if (c.Type == batchv1.JobComplete || c.Type == batchv1.JobFailed) && c.Status == corev1.ConditionTrue {
-			return true, c.Type
-		}
-	}
-
-	return false, ""
 }
