@@ -1,0 +1,14 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  creationTimestamp: null
+  name: {{ include "kwasm-operator.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "kwasm-operator.fullname" . }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "kwasm-operator.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
