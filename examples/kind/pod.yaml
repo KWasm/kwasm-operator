@@ -15,5 +15,5 @@ spec:
     name: wasi-demo
   restartPolicy: Never
   nodeSelector:
-    kwasm.sh/kwasm-provisioned: kind-worker
+    kwasm.sh/kwasm-provisioned: kind-worker2
   runtimeClassName: crun
