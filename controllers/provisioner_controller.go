@@ -36,7 +36,8 @@ import (
 // ProvisionerReconciler reconciles a Provisioner object
 type ProvisionerReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme        *runtime.Scheme
+	AutoProvision bool
 	Clock
 }
 
@@ -93,13 +94,13 @@ func (r *ProvisionerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	labelShouldBePresent := node.Annotations[addKWasmNodeLabelAnnotation] == "true"
 	labelIsPresent := node.Labels[nodeNameLabel] == node.Name
 
-	if labelShouldBePresent == labelIsPresent {
+	if labelShouldBePresent == labelIsPresent && !r.AutoProvision {
 		// The desired state and actual state of the Node are the same.
 		// No further action is required by the operator at this moment.
 
 		return ctrl.Result{}, nil
 	}
-	if labelShouldBePresent {
+	if labelShouldBePresent || r.AutoProvision && !labelIsPresent {
 		// If the label should be set but is not, set it.
 		if node.Labels == nil {
 			node.Labels = make(map[string]string)
@@ -113,7 +114,7 @@ func (r *ProvisionerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			return ctrl.Result{}, err
 		}
 
-	} else {
+	} else if !r.AutoProvision {
 		// If the label should not be set but is, remove it.
 		delete(node.Labels, nodeNameLabel)
 		log.Info().Msg("Label removed. Removing Job.")
