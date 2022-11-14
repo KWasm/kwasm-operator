@@ -8,11 +8,14 @@ image:
   repository: ghcr.io/kwasm/kwasm-operator
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: kwasm-operator-0.1.0
+  tag: kwasm-operator-0.2.0
 
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
+
+kwasmOperator:
+  autoProvision: "false"
 
 serviceAccount:
   # Specifies whether a service account should be created

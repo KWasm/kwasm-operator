@@ -20,6 +20,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -105,9 +106,16 @@ func main() {
 		os.Exit(1)
 	}
 
+	var autoProvision = false
+	if autoProvisionEnv, found := os.LookupEnv("AUTO_PROVISION_NODES"); found && strings.ToLower(autoProvisionEnv) == "true" {
+		autoProvision = true
+		setupLog.Info("AUTO_PROVISION_NODES enabled")
+	}
+
 	if err = (&controllers.ProvisionerReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		AutoProvision: autoProvision,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Provisioner")
 		os.Exit(1)

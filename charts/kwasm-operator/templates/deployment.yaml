@@ -30,6 +30,8 @@ spec:
           env:
           - name: CONTROLLER_NAMESPACE
             value: {{ .Release.Namespace }}
+          - name: AUTO_PROVISION_NODES
+            value: {{ .Values.kwasmOperator.autoProvision | quote }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
