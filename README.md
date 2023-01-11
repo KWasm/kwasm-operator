@@ -8,7 +8,9 @@ This Kubernetes Operators uses [KWasm/kwasm-node-installer](https://github.com/K
 > If you are searching for a production ready WebAssembly integration for your Kubernetes cluster, reach out to [Liquid Reply](https://www.reply.com/liquid-reply/en/)
 
 ## Example
-The KWasm Operator allows for fine-grained control over node provisioning instead of using the node installer with a DaemonSet. This example shows how to create a KinD cluster with three nodes and install the KWasm Operator. The example provisions a single node and schedules a Wasm pod on that specific node.```bash
+The KWasm Operator allows for fine-grained control over node provisioning instead of using the node installer with a DaemonSet. This example shows how to create a KinD cluster with three nodes and install the KWasm Operator. The example provisions a single node and schedules a Wasm pod on that specific node.
+
+```bash
 # Create cluster
 kind create cluster --config examples/kind/cluster.yaml
 # Add helm repo
