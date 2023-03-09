@@ -19,7 +19,6 @@ package controllers
 import (
 	"context"
 	"os"
-	"time"
 
 	"github.com/rs/zerolog/log"
 	batchv1 "k8s.io/api/batch/v1"
@@ -38,23 +37,11 @@ type ProvisionerReconciler struct {
 	client.Client
 	Scheme        *runtime.Scheme
 	AutoProvision bool
-	Clock
-}
-
-type realClock struct{}
-
-func (_ realClock) Now() time.Time { return time.Now() }
-
-// clock knows how to get the current time.
-// It can be used to fake out timing for testing.
-type Clock interface {
-	Now() time.Time
 }
 
 const (
 	addKWasmNodeLabelAnnotation = "kwasm.sh/kwasm-node"
 	nodeNameLabel               = "kwasm.sh/kwasm-provisioned"
-	scheduledTimeAnnotation     = "kwasm.sh/scheduledAt"
 	jobOwnerKey                 = ".metadata.controller"
 )
 
