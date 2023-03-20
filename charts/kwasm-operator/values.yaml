@@ -16,6 +16,7 @@ fullnameOverride: ""
 
 kwasmOperator:
   autoProvision: "false"
+  createRuntimeClass: "false"
 
 serviceAccount:
   # Specifies whether a service account should be created
