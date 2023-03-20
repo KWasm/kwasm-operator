@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/kwasm/kwasm-operator/controllers"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	nodev1 "k8s.io/api/node/v1"
