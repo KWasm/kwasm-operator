@@ -22,9 +22,12 @@ import (
 	"github.com/rs/zerolog/log"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	nodev1 "k8s.io/api/node/v1"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -32,7 +35,8 @@ import (
 // JobReconciler reconciles a Job object
 type JobReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme             *runtime.Scheme
+	CreateRuntimeClass bool
 }
 
 //+kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
@@ -64,6 +68,27 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	if job.Labels["kwasm.sh/job"] != "true" {
 		return ctrl.Result{}, nil
+	}
+
+	if r.CreateRuntimeClass {
+		runtimeClass := &nodev1.RuntimeClass{}
+		runtimeClassName := types.NamespacedName{Name: "crun", Namespace: ""}
+		if err := r.Get(ctx, runtimeClassName, runtimeClass); err != nil {
+			if apierrors.IsNotFound(err) {
+				log.Info().Msgf("RuntimeClass not found... Creating it now")
+
+				dep := &nodev1.RuntimeClass{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "crun",
+						Namespace: "",
+					},
+					Handler: "crun",
+				}
+				r.Create(ctx, dep)
+				ctrl.SetControllerReference(runtimeClass, dep, r.Scheme)
+				return ctrl.Result{}, nil
+			}
+		}
 	}
 
 	_, finishedType := r.isJobFinished(job)

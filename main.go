@@ -120,9 +120,15 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Provisioner")
 		os.Exit(1)
 	}
+	var createRuntimeClass = false
+	if createRuntimeClassEnv, found := os.LookupEnv("CREATE_RUNTIME_CLASS"); found && strings.ToLower(createRuntimeClassEnv) == "true" {
+		createRuntimeClass = true
+		setupLog.Info("CREATE_RUNTIME_CLASS enabled")
+	}
 	if err = (&controllers.JobReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:             mgr.GetClient(),
+		Scheme:             mgr.GetScheme(),
+		CreateRuntimeClass: createRuntimeClass,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Job")
 		os.Exit(1)
