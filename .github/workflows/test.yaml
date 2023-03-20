@@ -16,9 +16,6 @@ jobs:
       with:
         go-version: 1.19
 
-    - name: Set up gotestfmt
-      uses: gotesttools/gotestfmt-action@v2
-
     - name: Setup Envtest
       run: |
         make envtest
@@ -29,4 +26,4 @@ jobs:
     - name: Run tests
       run: |
         set -euo pipefail
-        KUBEBUILDER_ASSETS=$(./bin/setup-envtest use -p path 1.24.2) go test -json -v ./... 2>&1 | tee /tmp/gotest.log | gotestfmt
+        KUBEBUILDER_ASSETS=$(./bin/setup-envtest use -p path 1.24.2) go run github.com/onsi/ginkgo/v2/ginkgo -r --randomize-all --randomize-suites --race --trace --fail-on-pending --keep-going 
