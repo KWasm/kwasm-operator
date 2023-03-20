@@ -19,10 +19,14 @@ jobs:
     - name: Set up gotestfmt
       uses: gotesttools/gotestfmt-action@v2
 
+    - name: Setup Envtest
+      run: |
+        make envtest
+
     - name: Build
       run: go build -v ./...
 
     - name: Run tests
       run: |
         set -euo pipefail
-        go test -json -v ./... 2>&1 | tee /tmp/gotest.log | gotestfmt
+        KUBEBUILDER_ASSETS=$(./bin/setup-envtest use -p path 1.24.2) go test -json -v ./... 2>&1 | tee /tmp/gotest.log | gotestfmt
