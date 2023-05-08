@@ -106,16 +106,23 @@ func main() {
 		os.Exit(1)
 	}
 
-	var autoProvision = false
+	autoProvision := false
 	if autoProvisionEnv, found := os.LookupEnv("AUTO_PROVISION_NODES"); found && strings.ToLower(autoProvisionEnv) == "true" {
 		autoProvision = true
 		setupLog.Info("AUTO_PROVISION_NODES enabled")
 	}
 
+	installerImage := "ghcr.io/kwasm/kwasm-node-installer:main"
+	if installerImageEnv, found := os.LookupEnv("INSTALLER_IMAGE"); found {
+		installerImage = installerImageEnv
+		setupLog.Info(fmt.Sprintf("INSTALLER_IMAGE=%s", installerImage))
+	}
+
 	if err = (&controllers.ProvisionerReconciler{
-		Client:        mgr.GetClient(),
-		Scheme:        mgr.GetScheme(),
-		AutoProvision: autoProvision,
+		Client:         mgr.GetClient(),
+		Scheme:         mgr.GetScheme(),
+		AutoProvision:  autoProvision,
+		InstallerImage: installerImage,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Provisioner")
 		os.Exit(1)
