@@ -35,8 +35,9 @@ import (
 // ProvisionerReconciler reconciles a Provisioner object
 type ProvisionerReconciler struct {
 	client.Client
-	Scheme        *runtime.Scheme
-	AutoProvision bool
+	Scheme         *runtime.Scheme
+	AutoProvision  bool
+	InstallerImage string
 }
 
 const (
@@ -159,7 +160,7 @@ func (r *ProvisionerReconciler) deployJob(n *corev1.Node, req ctrl.Request) *bat
 						},
 					}},
 					Containers: []corev1.Container{{
-						Image: "ghcr.io/kwasm/kwasm-node-installer:main",
+						Image: r.InstallerImage,
 						Name:  "kwasm-provision",
 						SecurityContext: &corev1.SecurityContext{
 							Privileged: &priv,
