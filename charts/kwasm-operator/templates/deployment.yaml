@@ -32,6 +32,8 @@ spec:
             value: {{ .Release.Namespace }}
           - name: AUTO_PROVISION_NODES
             value: {{ .Values.kwasmOperator.autoProvision | quote }}
+          - name: INSTALLER_IMAGE
+            value: {{ .Values.kwasmOperator.installerImage | quote }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"

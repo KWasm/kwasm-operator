@@ -16,6 +16,7 @@ fullnameOverride: ""
 
 kwasmOperator:
   autoProvision: "false"
+  installerImage: "ghcr.io/kwasm/kwasm-node-installer:main"
 
 serviceAccount:
   # Specifies whether a service account should be created
