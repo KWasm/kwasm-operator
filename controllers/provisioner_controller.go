@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"math"
 	"os"
 
 	"github.com/rs/zerolog/log"
@@ -139,10 +140,12 @@ func (r *ProvisionerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 func (r *ProvisionerReconciler) deployJob(n *corev1.Node, req ctrl.Request) *batchv1.Job {
 
 	priv := true
+	name := req.Name + "-provision-kwasm"
+	nameMax := int(math.Min(float64(len(name)), 63))
 
 	dep := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      req.Name + "-provision-kwasm",
+			Name:      name[:nameMax],
 			Namespace: os.Getenv("CONTROLLER_NAMESPACE"),
 			Labels:    map[string]string{"kwasm.sh/job": "true"},
 		},
