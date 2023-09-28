@@ -6,7 +6,7 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-  - containerd.kwasm.sh
+  - runtime.kwasm.sh
   resources:
   - shims
   verbs:
@@ -18,13 +18,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - containerd.kwasm.sh
+  - runtime.kwasm.sh
   resources:
   - shims/finalizers
   verbs:
   - update
 - apiGroups:
-  - containerd.kwasm.sh
+  - runtime.kwasm.sh
   resources:
   - shims/status
   verbs:

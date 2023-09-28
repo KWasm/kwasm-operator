@@ -12,7 +12,7 @@ metadata:
   name: shim-viewer-role
 rules:
 - apiGroups:
-  - containerd.kwasm.sh
+  - runtime.kwasm.sh
   resources:
   - shims
   verbs:
@@ -20,7 +20,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - containerd.kwasm.sh
+  - runtime.kwasm.sh
   resources:
   - shims/status
   verbs:

@@ -16,7 +16,7 @@ resources:
     namespaced: true
   controller: true
   domain: kwasm.sh
-  group: containerd
+  group: runtime
   kind: Shim
   path: github.com/kwasm/kwasm-operator/api/v1beta1
   version: v1beta1
