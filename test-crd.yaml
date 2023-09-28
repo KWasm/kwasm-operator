@@ -1,0 +1,45 @@
+apiVersion: runtime.kwasm.sh/v1beta1
+kind: Shim
+metadata:
+  # The Shim resource is a cluster wide resource, no namespace.
+  name: my-shim-v0.1.2
+spec:
+  # optional: label selector for nodes to target with shim.
+  # If not supplied, the shim should be installed on all nodes.
+  nodeSelector:
+    wasm: "true"
+    
+  # required: The method for fetching a shim.
+  # This could be any number of strategies for fetching. For example, OCI.
+  fetchStrategy:
+    anonHttp:
+      location: https://github.com/some-org/some-project/releases/v0.8.0/shims.tar.gz
+      
+  # required: The runtime class to be applied in the cluster for the shim.
+  # 
+  # The validation for this structure should also validate the `handler`
+  # will map to the name / path of the shim binary that is installed on the node.
+  #
+  # Upon installation of a shim to a node, a label should be added to the node
+  # to indicate a specific shim is installed on the node. This label must be
+  # used to inform the K8s scheduler where to schedule workloads for the given
+  # runtime class.
+  #
+  # ---
+  # apiVersion: node.k8s.io/v1
+  # kind: RuntimeClass
+  # metadata:
+  #   name: myshim-v0.1.2
+  # handler: myshim_v0_1_2
+  # scheduling:
+  #   nodeSelector:
+  #     myshim_v0_1_2: "true"
+  runtimeClass:
+    name: my-shim-v0.1.2
+    
+  # rolloutStrategy describes how a change to this shim will be applied to nodes.
+  rolloutStrategy:
+    type: rolling
+    rolling:
+      maxUpdate: 5 # could also be a percentage of nodes, like 10% of nodes.
+  # conditions should provide the status of the resource and it's progression 
