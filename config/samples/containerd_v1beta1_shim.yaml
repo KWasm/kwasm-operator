@@ -1,0 +1,12 @@
+apiVersion: containerd.kwasm.sh/v1beta1
+kind: Shim
+metadata:
+  labels:
+    app.kubernetes.io/name: shim
+    app.kubernetes.io/instance: shim-sample
+    app.kubernetes.io/part-of: kwasm-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: kwasm-operator
+  name: shim-sample
+spec:
+  # TODO(user): Add fields here

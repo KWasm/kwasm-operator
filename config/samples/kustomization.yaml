@@ -1,0 +1,4 @@
+## Append samples you want in your CSV to this file as resources ##
+resources:
+- containerd_v1beta1_shim.yaml
+#+kubebuilder:scaffold:manifestskustomizesamples
