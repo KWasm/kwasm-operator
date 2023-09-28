@@ -1,0 +1,33 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: manager-role
+rules:
+- apiGroups:
+  - containerd.kwasm.sh
+  resources:
+  - shims
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - containerd.kwasm.sh
+  resources:
+  - shims/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - containerd.kwasm.sh
+  resources:
+  - shims/status
+  verbs:
+  - get
+  - patch
+  - update

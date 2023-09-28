@@ -1,0 +1,115 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.11.1
+  creationTimestamp: null
+  name: shims.runtime.kwasm.sh
+spec:
+  group: runtime.kwasm.sh
+  names:
+    kind: Shim
+    listKind: ShimList
+    plural: shims
+    singular: shim
+  scope: Cluster
+  versions:
+  - name: v1beta1
+    schema:
+      openAPIV3Schema:
+        description: Shim is the Schema for the shims API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ShimSpec defines the desired state of Shim
+            properties:
+              fetchStrategy:
+                properties:
+                  anonHttp:
+                    properties:
+                      location:
+                        type: string
+                    required:
+                    - location
+                    type: object
+                required:
+                - anonHttp
+                type: object
+              nodeSelector:
+                additionalProperties:
+                  type: string
+                type: object
+              rolloutStrategy:
+                properties:
+                  rolling:
+                    properties:
+                      maxUpdate:
+                        type: integer
+                    required:
+                    - maxUpdate
+                    type: object
+                  type:
+                    type: string
+                required:
+                - rolling
+                - type
+                type: object
+              runtimeClass:
+                properties:
+                  name:
+                    type: string
+                required:
+                - name
+                type: object
+            required:
+            - fetchStrategy
+            - rolloutStrategy
+            - runtimeClass
+            type: object
+          status:
+            description: ShimStatus defines the observed state of Shim
+            properties:
+              conditions:
+                items:
+                  properties:
+                    conditionSeverity:
+                      type: string
+                    lastTransitionTime:
+                      type: string
+                    message:
+                      type: string
+                    reason:
+                      type: string
+                    status:
+                      type: string
+                    type:
+                      type: string
+                  required:
+                  - conditionSeverity
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+            required:
+            - conditions
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
