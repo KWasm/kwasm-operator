@@ -50,22 +50,13 @@ type RollingSpec struct {
 }
 
 // ShimStatus defines the observed state of Shim
+// +operator-sdk:csv:customresourcedefinitions:type=status
 type ShimStatus struct {
-	Conditions []ShimCondition `json:"conditions"`
-}
-
-type ShimCondition struct {
-	Type               string `json:"type"`
-	Status             string `json:"status"`
-	ConditionSeverity  string `json:"conditionSeverity"`
-	LastTransitionTime string `json:"lastTransitionTime"`
-	Reason             string `json:"reason"`
-	Message            string `json:"message"`
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:path=shims,scope=Cluster
-// +kubebuilder:subresource:status
 // Shim is the Schema for the shims API
 type Shim struct {
 	metav1.TypeMeta   `json:",inline"`
