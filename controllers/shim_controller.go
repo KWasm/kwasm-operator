@@ -24,7 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	containerdv1beta1 "github.com/kwasm/kwasm-operator/api/v1beta1"
+	runtimev1beta1 "github.com/kwasm/kwasm-operator/api/v1beta1"
 )
 
 // ShimReconciler reconciles a Shim object
@@ -33,9 +33,9 @@ type ShimReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=containerd.kwasm.sh,resources=shims,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=containerd.kwasm.sh,resources=shims/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=containerd.kwasm.sh,resources=shims/finalizers,verbs=update
+//+kubebuilder:rbac:groups=runtime.kwasm.sh,resources=shims,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=runtime.kwasm.sh,resources=shims/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=runtime.kwasm.sh,resources=shims/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -57,6 +57,6 @@ func (r *ShimReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 // SetupWithManager sets up the controller with the Manager.
 func (r *ShimReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&containerdv1beta1.Shim{}).
+		For(&runtimev1beta1.Shim{}).
 		Complete(r)
 }

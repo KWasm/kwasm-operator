@@ -12,7 +12,7 @@ metadata:
   name: shim-editor-role
 rules:
 - apiGroups:
-  - containerd.kwasm.sh
+  - runtime.kwasm.sh
   resources:
   - shims
   verbs:
@@ -24,7 +24,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - containerd.kwasm.sh
+  - runtime.kwasm.sh
   resources:
   - shims/status
   verbs:
