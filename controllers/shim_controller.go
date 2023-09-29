@@ -74,53 +74,73 @@ func (r *ShimReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// Create a new Kubernetes Job based on the Shim custom resource
-	job := r.buildJobForShim(shim)
-
-	// Set the owner reference to the Shim custom resource
-	if err := controllerutil.SetControllerReference(shim, job, r.Scheme); err != nil {
+	nodeList := &corev1.NodeList{}
+	if err := r.Client.List(ctx, nodeList); err != nil {
+		log.Log.Error(err, "Failed to get all nodes status")
 		return ctrl.Result{}, err
 	}
 
-	// Check if the Job already exists, if not, create it
-	found := &batchv1.Job{}
-	err = r.Get(ctx, types.NamespacedName{
-		Name:      job.Name,
-		Namespace: job.Namespace}, found)
-	if err != nil && client.IgnoreNotFound(err) != nil {
-		return ctrl.Result{}, err
-	}
+	for _, node := range nodeList.Items {
 
-	if err != nil {
-		// Job does not exist, create it
-		if err := r.Create(ctx, job); err != nil {
+		if !matchNode(shim, node) {
+			continue
+		}
+
+		// Create a new Kubernetes Job based on the Shim custom resource
+		job := r.buildJobForShim(shim, node)
+
+		// Check if the Job already exists, if not, create it
+		found := &batchv1.Job{}
+		err = r.Get(ctx, types.NamespacedName{
+			Name:      job.Name,
+			Namespace: job.Namespace}, found)
+		if err != nil && client.IgnoreNotFound(err) != nil {
 			return ctrl.Result{}, err
 		}
 
-		r.Recorder.Event(shim, corev1.EventTypeNormal, "Created", "something was created")
+		if err != nil {
+			// Job does not exist, create it
+			if err := r.Create(ctx, job); err != nil {
+				log.Log.Error(err, "Failed to create job")
+				//return ctrl.Result{}, err
+			}
 
-		if err := r.UpdateConditions(ctx, shim, metav1.Condition{
-			Type:    typeAvailableShim,
-			Status:  metav1.ConditionUnknown,
-			Reason:  "Reconciling",
-			Message: "Job created"}); err != nil {
-			return ctrl.Result{}, err
+			err := r.Get(ctx, req.NamespacedName, shim)
+			if err != nil {
+				return ctrl.Result{}, client.IgnoreNotFound(err)
+			}
+
+			r.Recorder.Event(shim, corev1.EventTypeNormal, "Created", "something was created")
+
+			if err := r.UpdateConditions(ctx, shim, metav1.Condition{
+				Type:    typeAvailableShim,
+				Status:  metav1.ConditionUnknown,
+				Reason:  "Reconciling",
+				Message: "Job created"}); err != nil {
+				return ctrl.Result{}, err
+			}
 		}
 	}
-
 	// Job already exists, do nothing
 	return ctrl.Result{}, nil
 }
 
-func (r *ShimReconciler) buildJobForShim(shim *v1beta1.Shim) *batchv1.Job {
+func (r *ShimReconciler) buildJobForShim(shim *v1beta1.Shim, node corev1.Node) *batchv1.Job {
+	//TODO: check if shim nodeselctor matches node.
+
+	backoffLimit := int32(1)
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("shim-job-%s", shim.Name),
+			Name:      fmt.Sprintf("%s-%s", shim.Name, node.Name),
 			Namespace: os.Getenv("CONTROLLER_NAMESPACE"),
 		},
 		Spec: batchv1.JobSpec{
+			BackoffLimit: &backoffLimit,
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
+					RestartPolicy: "Never",
+					NodeName:      node.Name,
+					NodeSelector:  shim.Spec.NodeSelector,
 					Containers: []corev1.Container{
 						{
 							Name:  "my-shim-container",
@@ -128,11 +148,16 @@ func (r *ShimReconciler) buildJobForShim(shim *v1beta1.Shim) *batchv1.Job {
 							// Add other container settings as needed
 						},
 					},
-					RestartPolicy: "Never",
 				},
 			},
 		},
 	}
+
+	// Set the owner reference to the Shim custom resource
+	if err := controllerutil.SetControllerReference(shim, job, r.Scheme); err != nil {
+		return nil
+	}
+
 	return job
 }
 
@@ -149,6 +174,22 @@ func (r *ShimReconciler) UpdateConditions(ctx context.Context, shim *runtimev1be
 	}
 
 	return nil
+}
+
+func matchNode(shim *v1beta1.Shim, node corev1.Node) bool {
+	if shim.Spec.NodeSelector == nil {
+		return true
+	}
+	matchNode := false
+	for selector, selectorValue := range shim.Spec.NodeSelector {
+		for label, labelValue := range node.Labels {
+			if label == selector && labelValue == selectorValue {
+				matchNode = true
+				break
+			}
+		}
+	}
+	return matchNode
 }
 
 // SetupWithManager sets up the controller with the Manager.
