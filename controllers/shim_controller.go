@@ -21,7 +21,9 @@ import (
 	"fmt"
 	"os"
 
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -82,7 +84,9 @@ func (r *ShimReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 
 	// Check if the Job already exists, if not, create it
 	found := &batchv1.Job{}
-	err = r.Get(ctx, req.NamespacedName, found)
+	err = r.Get(ctx, types.NamespacedName{
+		Name:      job.Name,
+		Namespace: job.Namespace}, found)
 	if err != nil && client.IgnoreNotFound(err) != nil {
 		return ctrl.Result{}, err
 	}
@@ -92,7 +96,16 @@ func (r *ShimReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		if err := r.Create(ctx, job); err != nil {
 			return ctrl.Result{}, err
 		}
-		return ctrl.Result{}, nil
+
+		r.Recorder.Event(shim, corev1.EventTypeNormal, "Created", "something was created")
+
+		if err := r.UpdateConditions(ctx, shim, metav1.Condition{
+			Type:    typeAvailableShim,
+			Status:  metav1.ConditionUnknown,
+			Reason:  "Reconciling",
+			Message: "Job created"}); err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
 	// Job already exists, do nothing
@@ -121,6 +134,21 @@ func (r *ShimReconciler) buildJobForShim(shim *v1beta1.Shim) *batchv1.Job {
 		},
 	}
 	return job
+}
+
+func (r *ShimReconciler) UpdateConditions(ctx context.Context, shim *runtimev1beta1.Shim, condition metav1.Condition) error {
+	meta.SetStatusCondition(&shim.Status.Conditions, condition)
+	if err := r.Update(ctx, shim); err != nil {
+		log.Log.Error(err, "Failed to update shim status")
+		return err
+	}
+
+	if err := r.Get(ctx, types.NamespacedName{Namespace: shim.Namespace, Name: shim.Name}, shim); err != nil {
+		log.Log.Error(err, "Failed to re-fetch shim")
+		return err
+	}
+
+	return nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
