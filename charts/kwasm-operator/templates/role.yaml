@@ -13,3 +13,4 @@ rules:
   - list
   - watch
   - create
+  - delete
