@@ -134,6 +134,8 @@ var _ = Describe("ProvisionerController", func() {
 			_, err = kwasmReconciler.Reconcile(ctx, reconcile.Request{
 				NamespacedName: nodeNameNamespaced,
 			})
+			Expect(err).NotTo(HaveOccurred())
+
 			// Check that the job was created.
 			job = &batchv1.Job{}
 			err = k8sClient.Get(ctx, types.NamespacedName{Name: nodeName + "-provision-kwasm", Namespace: namespaceName}, job)

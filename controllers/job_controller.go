@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/rs/zerolog/log"
 	batchv1 "k8s.io/api/batch/v1"
@@ -59,7 +60,7 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			return ctrl.Result{}, nil
 		}
 		log.Err(err).Msg("Unable to get Job")
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("failed to get Job: %w", err)
 	}
 
 	if job.Labels["kwasm.sh/job"] != "true" {
@@ -74,8 +75,14 @@ func (r *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	case batchv1.JobFailed:
 		log.Info().Msgf("Job %s is still failing...", job.Name)
 		return ctrl.Result{}, nil
+	case batchv1.JobFailureTarget:
+		log.Info().Msgf("Job %s is about to fail", job.Name)
+		return ctrl.Result{}, nil
 	case batchv1.JobComplete:
 		log.Info().Msgf("Job %s is Completed. Happy WASMing", job.Name)
+		return ctrl.Result{}, nil
+	case batchv1.JobSuspended:
+		log.Info().Msgf("Job %s is suspended", job.Name)
 		return ctrl.Result{}, nil
 	}
 
@@ -94,7 +101,9 @@ func (r *JobReconciler) isJobFinished(job *batchv1.Job) (bool, batchv1.JobCondit
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *JobReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&batchv1.Job{}).
-		Complete(r)
+	if err := ctrl.NewControllerManagedBy(mgr).For(&batchv1.Job{}).Complete(r); err != nil {
+		return fmt.Errorf("failed to setup manager for JobReconciler: %w", err)
+	}
+
+	return nil
 }
