@@ -27,6 +27,8 @@ spec:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: {{ .Chart.Name }}
+          args:
+          - --leader-elect
           env:
           - name: CONTROLLER_NAMESPACE
             value: {{ .Release.Namespace }}
