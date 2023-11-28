@@ -1,0 +1,32 @@
+name: Sign image
+
+on:
+  workflow_call:
+    inputs:
+      image-digest:
+        type: string
+        required: true
+
+jobs:
+  sign:
+    name: Sign image
+    permissions:
+      packages: write
+      id-token: write
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install cosign
+        uses: sigstore/cosign-installer@11086d25041f77fe8fe7b9ea4e48e3b9192b8f19 # v3.1.2
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Sign container image
+        run: |
+          cosign sign --yes \
+            ghcr.io/${{github.repository_owner}}/kwasm-operator@${{ inputs.image-digest }}

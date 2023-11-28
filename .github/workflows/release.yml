@@ -1,0 +1,125 @@
+name: kwasm-operator release
+on:
+  push:
+    tags:
+      - "v*"
+
+# Declare default permissions as read only.
+permissions: read-all
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+    permissions: read-all
+
+  build:
+    name: Build container image, sign it, and generate SBOMs
+    uses: ./.github/workflows/container-build.yml
+    permissions:
+      id-token: write
+      packages: write
+
+  release:
+    name: Create release
+
+    needs:
+      - ci
+      - build
+
+    permissions:
+      contents: write
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Retrieve tag name
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        run: |
+          echo TAG_NAME=$(echo ${{ github.ref_name }}) >> $GITHUB_ENV
+
+      - name: Get latest release tag
+        id: get_last_release_tag
+        uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 # v6.4.1
+        with:
+          script: |
+            let release = await github.rest.repos.getLatestRelease({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+            });
+
+            if (release.status  === 200 ) {
+              core.setOutput('old_release_tag', release.data.tag_name)
+              return
+            }
+            core.setFailed("Cannot find latest release")
+
+      - name: Get release ID from the release created by release drafter
+        uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 # v6.4.1
+        with:
+          script: |
+            let releases = await github.rest.repos.listReleases({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+            });
+            for (const release of releases.data) {
+              if (release.draft) {
+                      core.info(release)
+                      core.exportVariable('RELEASE_ID', release.id)
+                      return
+              }
+            }
+            core.setFailed(`Draft release not found`)
+
+      - name: Download SBOM artifact
+        uses: actions/download-artifact@9bc31d5ccc31df68ecc42ccf4149144866c47d8a # v3.0.2
+        with:
+          name: sbom
+
+      - name: Display structure of downloaded files
+        run: ls -R
+
+      - name: Upload release assets
+        id: upload_release_assets
+        uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 # v6.4.1
+        with:
+          script: |
+            let fs = require('fs');
+            let path = require('path');
+
+            let files = [
+              'kwasm-operator-sbom-amd64.spdx',
+              'kwasm-operator-sbom-amd64.spdx.cert',
+              'kwasm-operator-sbom-amd64.spdx.sig',
+              'kwasm-operator-sbom-arm64.spdx',
+              'kwasm-operator-sbom-arm64.spdx.cert',
+              'kwasm-operator-sbom-arm64.spdx.sig']
+            const {RELEASE_ID} = process.env
+
+            for (const file of files) {
+              let file_data = fs.readFileSync(file);
+
+              let response = await github.rest.repos.uploadReleaseAsset({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                release_id: `${RELEASE_ID}`,
+                name: path.basename(file),
+                data: file_data,
+              });
+            }
+
+      - name: Publish release
+        uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 # v6.4.1
+        with:
+          script: |
+            const {RELEASE_ID} = process.env
+            const {TAG_NAME} = process.env
+            github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: `${RELEASE_ID}`,
+              draft: false,
+              tag_name: `${TAG_NAME}`,
+              name: `${TAG_NAME}`,
+              prerelease: `${{ contains(github.event.workflow_run.head_branch, '-alpha') || contains(github.event.workflow_run.head_branch, '-beta') || contains(github.event.workflow_run.head_branch, '-rc') }}`,
+              make_latest: `${{ !(contains(github.event.workflow_run.head_branch, '-alpha') || contains(github.event.workflow_run.head_branch, '-beta') || contains(github.event.workflow_run.head_branch, '-rc')) }}`
+            });

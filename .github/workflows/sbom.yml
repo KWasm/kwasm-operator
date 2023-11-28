@@ -1,0 +1,83 @@
+name: Generate SBOMs
+
+on:
+  workflow_call:
+    inputs:
+      image-digest:
+        type: string
+        required: true
+
+jobs:
+  sbom:
+    name: Generate SBOM, sign and attach them to OCI image
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+
+    permissions:
+      packages: write
+      id-token: write
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install cosign
+        uses: sigstore/cosign-installer@11086d25041f77fe8fe7b9ea4e48e3b9192b8f19 # v3.1.2
+
+      - name: Install the syft command
+        uses: anchore/sbom-action/download-syft@fd74a6fb98a204a1ad35bbfae0122c1a302ff88b # v0.15.0
+
+      - name: Install the crane command
+        uses: IAreKyleW00t/crane-installer@51d8c3cde789d00a49bcb1aaaf55c5f55fe60674 # v1.3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Find platform digest
+        shell: bash
+        run: |
+          set -e
+          DIGEST=$(crane digest \
+            --platform "linux/${{ matrix.arch }}" \
+            ghcr.io/${{ github.repository_owner }}/kwasm-operator@${{ inputs.image-digest }})
+          echo "PLATFORM_DIGEST=${DIGEST}" >> "$GITHUB_ENV"
+
+      - name: Create SBOM file
+        shell: bash
+        run: |
+          syft \
+            -o spdx-json \
+            --file kwasm-operator-sbom-${{ matrix.arch }}.spdx \
+            ghcr.io/${{ github.repository_owner }}/kwasm-operator@${{ env.PLATFORM_DIGEST }}
+
+      - name: Sign SBOM file
+        run: |
+          cosign sign-blob --yes \
+            --output-certificate kwasm-operator-sbom-${{ matrix.arch }}.spdx.cert \
+            --output-signature kwasm-operator-sbom-${{ matrix.arch }}.spdx.sig \
+            kwasm-operator-sbom-${{ matrix.arch }}.spdx
+
+      - name: Attach SBOM file in the container image
+        shell: bash
+        run: |
+          cosign attach \
+            sbom --sbom kwasm-operator-sbom-${{ matrix.arch }}.spdx \
+            ghcr.io/${{ github.repository_owner }}/kwasm-operator@${{ env.PLATFORM_DIGEST }}
+
+      - name: Sign SBOM file pushed to OCI registry
+        shell: bash
+        run: |
+          set -e
+          SBOM_TAG="$(echo ${{ env.PLATFORM_DIGEST }} | sed -e 's/:/-/g').sbom"
+
+          cosign sign --yes \
+            ghcr.io/${{github.repository_owner}}/kwasm-operator:${SBOM_TAG}
+
+      - name: Upload SBOMs as artifacts
+        uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3
+        with:
+          name: sbom
+          path: kwasm-operator-sbom-*
