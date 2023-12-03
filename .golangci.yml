@@ -1,0 +1,98 @@
+# This file contains all available configuration options
+# with their default values.
+
+# options for analysis running
+run:
+  tests: true
+  timeout: 10m
+
+issues:
+  exclude-rules:
+    - linters:
+        - funlen
+      # Disable 'funlen' linter for test functions.
+      # It's common for table-driven tests to be more than 60 characters long
+      source: "^func Test"
+    - path: internal/pkg/admission/policy-server-error.go
+      linters:
+        - deadcode
+        - unused
+    - path: internal/pkg/admissionregistration/cert.go
+      linters:
+        - gocritic
+    - path: internal/pkg/admission/validating-webhook.go
+      linters:
+        - dupl
+    - path: internal/pkg/admission/mutating-webhook.go
+      linters:
+        - dupl
+    - path: pkg/apis/policies/v1alpha2/clusteradmissionpolicy_types.go
+      text: "got 'TypeMeta' want 'typeMeta'"
+    - path: pkg/apis/policies/v1alpha2/policyserver_types.go
+      text: "got 'TypeMeta' want 'typeMeta'"
+
+linters:
+  enable-all: true
+  disable:
+    - exhaustivestruct
+    - exhaustruct
+    - gci
+    - gochecknoglobals
+    - gochecknoinits
+    - gocognit
+    - godot
+    - goerr113
+    - golint
+    - gofumpt
+    - gomnd
+    - maligned
+    - nlreturn
+    - paralleltest
+    - scopelint
+    - testpackage
+    - wsl
+    - lll # long lines
+    # https://github.com/golangci/golangci-lint/issues/541
+    - interfacer
+    - interfacebloat
+    # TODO: enable once we can set some exceptions
+    - funlen
+    - ifshort # deprecated
+
+linters-settings:
+  cyclop:
+    max-complexity: 13
+  nestif:
+    min-complexity: 8
+  depguard:
+    # Rules to apply.
+    #
+    # Variables:
+    # - File Variables
+    #   you can still use and exclamation mark ! in front of a variable to say not to use it.
+    #   Example !$test will match any file that is not a go test file.
+    #
+    #   `$all` - matches all go files
+    #   `$test` - matches all go test files
+    #
+    # - Package Variables
+    #
+    #  `$gostd` - matches all of go's standard library (Pulled from `GOROOT`)
+    #
+    # Default: Only allow $gostd in all files.
+    rules:
+      # Name of a rule.
+      main:
+        # List of file globs that will match this list of settings to compare against.
+        # Default: $all
+        files:
+          - $all
+          - "!$test"
+        deny:
+          - pkg: "github.com/sirupsen/logrus"
+            desc: not allowed
+          - pkg: "github.com/pkg/errors"
+            desc: Should be replaced by standard lib errors package
+  godox:
+    keywords:
+      - "FIXME"

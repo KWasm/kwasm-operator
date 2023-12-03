@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"os"
 
@@ -44,7 +45,6 @@ type ProvisionerReconciler struct {
 const (
 	addKWasmNodeLabelAnnotation = "kwasm.sh/kwasm-node"
 	nodeNameLabel               = "kwasm.sh/kwasm-provisioned"
-	jobOwnerKey                 = ".metadata.controller"
 )
 
 //+kubebuilder:rbac:groups=wasm.kwasm.sh,resources=provisioners,verbs=get;list;watch;create;update;patch;delete
@@ -62,6 +62,8 @@ const (
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.12.2/pkg/reconcile
+//
+//nolint:cyclop
 func (r *ProvisionerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := log.With().Str("node", req.Name).Logger()
 	node := &corev1.Node{}
@@ -73,7 +75,7 @@ func (r *ProvisionerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			// on deleted requests.
 			return ctrl.Result{}, nil
 		}
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("failed to get node: %w", err)
 	}
 
 	/*
@@ -96,13 +98,16 @@ func (r *ProvisionerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 		node.Labels[nodeNameLabel] = node.Name
 		log.Info().Msgf("Trying to Deploy on %s", node.Name)
-		dep := r.deployJob(node, req)
-		err := r.Create(ctx, dep)
+
+		dep, err := r.deployJob(node, req)
 		if err != nil {
-			log.Err(err).Msg("Failed to create new Job " + req.Namespace + " Job.Name " + req.Name)
 			return ctrl.Result{}, err
 		}
 
+		if err = r.Create(ctx, dep); err != nil {
+			log.Err(err).Msg("Failed to create new Job " + req.Namespace + " Job.Name " + req.Name)
+			return ctrl.Result{}, fmt.Errorf("failed to create new job: %w", err)
+		}
 	} else if !r.AutoProvision {
 		// If the label should not be set but is, remove it.
 		delete(node.Labels, nodeNameLabel)
@@ -131,14 +136,13 @@ func (r *ProvisionerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			return ctrl.Result{Requeue: true}, nil
 		}
 		log.Error().Err(err).Msg("unable to update Node")
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("failed to update Node: %w", err)
 	}
 
 	return ctrl.Result{}, nil
 }
 
-func (r *ProvisionerReconciler) deployJob(n *corev1.Node, req ctrl.Request) *batchv1.Job {
-
+func (r *ProvisionerReconciler) deployJob(node *corev1.Node, req ctrl.Request) (*batchv1.Job, error) {
 	priv := true
 	name := req.Name + "-provision-kwasm"
 	nameMax := int(math.Min(float64(len(name)), 63))
@@ -186,15 +190,17 @@ func (r *ProvisionerReconciler) deployJob(n *corev1.Node, req ctrl.Request) *bat
 			},
 		},
 	}
-	ctrl.SetControllerReference(n, dep, r.Scheme)
+	if err := ctrl.SetControllerReference(node, dep, r.Scheme); err != nil {
+		return nil, fmt.Errorf("failed to set controller reference: %w", err)
+	}
 
-	return dep
+	return dep, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *ProvisionerReconciler) SetupWithManager(mgr ctrl.Manager) error {
-
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&corev1.Node{}).
-		Complete(r)
+	if err := ctrl.NewControllerManagedBy(mgr).For(&corev1.Node{}).Complete(r); err != nil {
+		return fmt.Errorf("failed to setup manager for ProvisionerReconciler: %w", err)
+	}
+	return nil
 }

@@ -1,6 +1,6 @@
 module github.com/kwasm/kwasm-operator
 
-go 1.18
+go 1.21
 
 require (
 	github.com/onsi/ginkgo v1.16.5

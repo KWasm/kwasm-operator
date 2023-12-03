@@ -15,15 +15,14 @@ import (
 )
 
 var namespaceName = "kwasm-provisioner"
+var installerImage = "ghcr.io/kwasm/kwasm-node-installer:latest"
 
 var _ = Describe("ProvisionerController", func() {
 	Context("Kwasm Provisioner controller test", func() {
 		var (
-			ctx  context.Context
-			node *corev1.Node
-			//scheme     *runtime.Scheme
-			err error
-			//request    ctrl.Request
+			ctx    context.Context
+			node   *corev1.Node
+			err    error
 			result ctrl.Result
 			job    *batchv1.Job
 		)
@@ -43,8 +42,9 @@ var _ = Describe("ProvisionerController", func() {
 			}
 
 			kwasmReconciler := &controllers.ProvisionerReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
+				Client:         k8sClient,
+				Scheme:         k8sClient.Scheme(),
+				InstallerImage: installerImage,
 			}
 			err = k8sClient.Create(ctx, node)
 			Expect(err).NotTo(HaveOccurred())
@@ -77,7 +77,6 @@ var _ = Describe("ProvisionerController", func() {
 			err = k8sClient.Get(ctx, types.NamespacedName{Name: nodeName + "-provision-kwasm", Namespace: namespaceName}, job)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(job).NotTo(BeNil())
-
 		})
 
 		It("should not set autoProvision to true by default", func() {
@@ -90,8 +89,9 @@ var _ = Describe("ProvisionerController", func() {
 			nodeNameNamespaced := types.NamespacedName{Name: nodeName, Namespace: ""}
 
 			kwasmReconciler := &controllers.ProvisionerReconciler{
-				Client: k8sClient,
-				Scheme: k8sClient.Scheme(),
+				Client:         k8sClient,
+				Scheme:         k8sClient.Scheme(),
+				InstallerImage: installerImage,
 			}
 
 			node = &corev1.Node{
@@ -111,16 +111,17 @@ var _ = Describe("ProvisionerController", func() {
 			job = &batchv1.Job{}
 			err = k8sClient.Get(ctx, types.NamespacedName{Name: nodeName + "-provision-kwasm", Namespace: namespaceName}, job)
 			Expect(err).To(HaveOccurred())
-
 		})
+
 		It("should provision node if autoprovision is true", func() {
 			nodeName := "autoprovision-node"
 			nodeNameNamespaced := types.NamespacedName{Name: nodeName, Namespace: ""}
 
 			kwasmReconciler := &controllers.ProvisionerReconciler{
-				Client:        k8sClient,
-				Scheme:        k8sClient.Scheme(),
-				AutoProvision: true,
+				Client:         k8sClient,
+				Scheme:         k8sClient.Scheme(),
+				InstallerImage: installerImage,
+				AutoProvision:  true,
 			}
 			node = &corev1.Node{
 				ObjectMeta: metav1.ObjectMeta{
@@ -133,6 +134,8 @@ var _ = Describe("ProvisionerController", func() {
 			_, err = kwasmReconciler.Reconcile(ctx, reconcile.Request{
 				NamespacedName: nodeNameNamespaced,
 			})
+			Expect(err).NotTo(HaveOccurred())
+
 			// Check that the job was created.
 			job = &batchv1.Job{}
 			err = k8sClient.Get(ctx, types.NamespacedName{Name: nodeName + "-provision-kwasm", Namespace: namespaceName}, job)
