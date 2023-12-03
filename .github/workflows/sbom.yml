@@ -40,9 +40,11 @@ jobs:
         shell: bash
         run: |
           set -e
+          IMG_REPOSITORY_NAME=$( echo ${{ github.repository_owner }} | awk '{print tolower($0)}' )
+          echo IMG_REPOSITORY_NAME=${IMG_REPOSITORY_NAME} >> $GITHUB_ENV
           DIGEST=$(crane digest \
             --platform "linux/${{ matrix.arch }}" \
-            ghcr.io/${{ github.repository_owner }}/kwasm-operator@${{ inputs.image-digest }})
+            ghcr.io/${IMG_REPOSITORY_NAME}/kwasm-operator@${{ inputs.image-digest }})
           echo "PLATFORM_DIGEST=${DIGEST}" >> "$GITHUB_ENV"
 
       - name: Create SBOM file
@@ -51,7 +53,7 @@ jobs:
           syft \
             -o spdx-json \
             --file kwasm-operator-sbom-${{ matrix.arch }}.spdx \
-            ghcr.io/${{ github.repository_owner }}/kwasm-operator@${{ env.PLATFORM_DIGEST }}
+            ghcr.io/${{ env.IMG_REPOSITORY_NAME }}/kwasm-operator@${{ env.PLATFORM_DIGEST }}
 
       - name: Sign SBOM file
         run: |
@@ -65,7 +67,7 @@ jobs:
         run: |
           cosign attach \
             sbom --sbom kwasm-operator-sbom-${{ matrix.arch }}.spdx \
-            ghcr.io/${{ github.repository_owner }}/kwasm-operator@${{ env.PLATFORM_DIGEST }}
+            ghcr.io/${{ env.IMG_REPOSITORY_NAME }}/kwasm-operator@${{ env.PLATFORM_DIGEST }}
 
       - name: Sign SBOM file pushed to OCI registry
         shell: bash
@@ -74,7 +76,7 @@ jobs:
           SBOM_TAG="$(echo ${{ env.PLATFORM_DIGEST }} | sed -e 's/:/-/g').sbom"
 
           cosign sign --yes \
-            ghcr.io/${{github.repository_owner}}/kwasm-operator:${SBOM_TAG}
+            ghcr.io/${{ env.IMG_REPOSITORY_NAME }}/kwasm-operator:${SBOM_TAG}
 
       - name: Upload SBOMs as artifacts
         uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3
