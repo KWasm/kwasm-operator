@@ -27,12 +27,16 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	batchv1 "k8s.io/api/batch/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/kwasm/kwasm-operator/controllers"
 	//+kubebuilder:scaffold:imports
@@ -81,14 +85,41 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
+	namespaceSelector := cache.ByObject{
+		Field: fields.ParseSelectorOrDie(fmt.Sprintf("metadata.namespace=%s", getWatchNamespace())),
+	}
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
-		Port:                   9443,
+		Scheme: scheme,
+		Metrics: metricsserver.Options{
+			BindAddress: metricsAddr,
+		},
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "c74b86db.kwasm.sh",
-		Namespace:              getWatchNamespace(),
+		// Warning: the manager creates a client, which then uses Watches to monitor
+		// certain resources. By default, the client is not going to be namespaced,
+		// it will be able to watch resources across the entire cluster. This is of
+		// course constrained by the RBAC rules applied to the ServiceAccount that
+		// runs the controller.
+		// **However**, even when accessing a resource inside of a specific Namespace,
+		// the default behaviour of the cache is to create a Watch that is not namespaced;
+		// hence requires the privilege to access all the resources of that type inside
+		// of the cluster. That can cause runtime error if the ServiceAccount lacking
+		// this privilege.
+		// For example, when we access a Job inside the `kwasm`
+		// namespace, the cache will create a Watch against Job, that will require
+		// privileged to acccess ALL the secrets of the cluster.
+		//
+		// To be able to have stricter RBAC rules, we need to instruct the cache to
+		// only watch objects inside of the namespace where the controller is running.
+		// That applies ONLY to the namespaced resources that we know the controller
+		// is going to own inside of a specific namespace.
+		Cache: cache.Options{
+			ByObject: map[client.Object]cache.ByObject{
+				&batchv1.Job{}: namespaceSelector,
+			},
+		},
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the
 		// Manager is stopped, otherwise, this setting is unsafe. Setting this significantly
