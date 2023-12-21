@@ -1,0 +1,2 @@
+# Replace with a development registry that offers pull & push access
+registry: ghcr.io/<your github handle>/kwasm-operator
