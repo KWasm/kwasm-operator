@@ -4,10 +4,7 @@
 # More info: https://book.kubebuilder.io/reference/project-config.html
 domain: kwasm.sh
 layout:
-- go.kubebuilder.io/v3
-plugins:
-  manifests.sdk.operatorframework.io/v2: {}
-  scorecard.sdk.operatorframework.io/v2: {}
+- go.kubebuilder.io/v4
 projectName: kwasm-operator
 repo: github.com/kwasm/kwasm-operator
 resources:
@@ -18,6 +15,11 @@ resources:
   domain: kwasm.sh
   group: runtime
   kind: Shim
-  path: github.com/kwasm/kwasm-operator/api/v1beta1
-  version: v1beta1
+  path: github.com/kwasm/kwasm-operator/api/v1alpha1
+  version: v1alpha1
+- controller: true
+  domain: kwasm.sh
+  group: runtime
+  kind: Node
+  version: v1alpha1
 version: "3"

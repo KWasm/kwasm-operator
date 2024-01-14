@@ -1,4 +1,4 @@
-apiVersion: runtime.kwasm.sh/v1beta1
+apiVersion: runtime.kwasm.sh/v1alpha1
 kind: Shim
 metadata:
   labels:

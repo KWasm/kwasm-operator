@@ -1,5 +1,5 @@
 /*
-Copyright 2023.
+Copyright 2024.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -31,9 +31,10 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	runtimev1beta1 "github.com/kwasm/kwasm-operator/api/v1beta1"
-	"github.com/kwasm/kwasm-operator/controllers"
+	runtimev1alpha1 "github.com/kwasm/kwasm-operator/api/v1alpha1"
+	"github.com/kwasm/kwasm-operator/internal/controller"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -45,7 +46,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(runtimev1beta1.AddToScheme(scheme))
+	utilruntime.Must(runtimev1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -54,7 +55,7 @@ func getWatchNamespace() string {
 	// WatchNamespaceEnvVar is the constant for env variable WATCH_NAMESPACE
 	// which specifies the Namespace to watch.
 	// An empty value means the operator will fail to start.
-	var watchNamespaceEnvVar = "CONTROLLER_NAMESPACE"
+	watchNamespaceEnvVar := "CONTROLLER_NAMESPACE"
 
 	ns, found := os.LookupEnv(watchNamespaceEnvVar)
 	if !found {
@@ -68,7 +69,7 @@ func main() {
 	var enableLeaderElection bool
 	var probeAddr string
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
-	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8082", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
@@ -82,10 +83,8 @@ func main() {
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
-		Port:                   9443,
+		Metrics:                metricsserver.Options{BindAddress: metricsAddr},
 		HealthProbeBindAddress: probeAddr,
-		Namespace:              getWatchNamespace(),
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "7584d300.kwasm.sh",
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
@@ -105,14 +104,20 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controllers.ShimReconciler{
-		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
-		Recorder: mgr.GetEventRecorderFor("kwasm-shim-controller"),
+	if err = (&controller.ShimReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Shim")
 		os.Exit(1)
 	}
+	// if err = (&controller.NodeReconciler{
+	// 	Client: mgr.GetClient(),
+	// 	Scheme: mgr.GetScheme(),
+	// }).SetupWithManager(mgr); err != nil {
+	// 	setupLog.Error(err, "unable to create controller", "controller", "Node")
+	// 	os.Exit(1)
+	// }
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
