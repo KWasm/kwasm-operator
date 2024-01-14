@@ -29,6 +29,7 @@ type ShimSpec struct {
 }
 
 type FetchStrategy struct {
+	Type     string       `json:"type"`
 	AnonHttp AnonHttpSpec `json:"anonHttp"`
 }
 

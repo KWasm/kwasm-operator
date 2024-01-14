@@ -44,8 +44,11 @@ spec:
                     required:
                     - location
                     type: object
+                  type:
+                    type: string
                 required:
                 - anonHttp
+                - type
                 type: object
               nodeSelector:
                 additionalProperties:
