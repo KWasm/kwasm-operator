@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	github.com/onsi/ginkgo v1.16.5
-	github.com/onsi/gomega v1.31.0
+	github.com/onsi/gomega v1.31.1
 	github.com/rs/zerolog v1.31.0
 	k8s.io/api v0.29.1
 	k8s.io/apimachinery v0.29.1
