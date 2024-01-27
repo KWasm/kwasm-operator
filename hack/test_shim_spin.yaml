@@ -1,0 +1,22 @@
+apiVersion: runtime.kwasm.sh/v1alpha1 
+kind: Shim
+metadata:
+  name: wasmtime-spin-v2
+spec:
+  nodeSelector:
+    spin: "true"
+
+  fetchStrategy:
+    type: annonymousHttp
+    anonHttp:
+      location: "https://github.com/deislabs/containerd-wasm-shims/releases/download/v0.10.0/containerd-wasm-shims-v2-spin-linux-aarch64.tar.gz"
+
+  runtimeClass:
+    name: wasmtime-spin-v2
+
+  rolloutStrategy:
+    type: recreate
+  # rolloutStrategy:
+  #   type: rolling
+  #   rolling:
+  #     maxUpdate: 5
