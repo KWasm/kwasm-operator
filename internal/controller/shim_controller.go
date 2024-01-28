@@ -119,7 +119,10 @@ func (sr *ShimReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	// 4. Deploy job to each node in list
 	if len(nodes.Items) != 0 {
-		sr.handleDeployJob(ctx, &shimResource, nodes, req)
+		_, err = sr.handleDeployJob(ctx, &shimResource, nodes, req)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
 	} else {
 		log.Info().Msg("No nodes found")
 	}
