@@ -1,0 +1,22 @@
+apiVersion: runtime.kwasm.sh/v1alpha1 
+kind: Shim
+metadata:
+  name: lunatic-v1
+spec:
+  # nodeSelector:
+  #   wasm: "true"
+
+  fetchStrategy:
+    type: annonymousHttp
+    anonHttp:
+      location: "https://github.com/deislabs/containerd-wasm-shims/releases/download/v0.10.0/containerd-wasm-shims-v1-lunatic-linux-aarch64.tar.gz"
+
+  runtimeClass:
+    name: lunatic-v1
+
+  rolloutStrategy:
+    type: recreate
+  # rolloutStrategy:
+  #   type: rolling
+  #   rolling:
+  #     maxUpdate: 5
