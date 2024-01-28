@@ -23,6 +23,7 @@ import (
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
+	"github.com/prometheus/common/version"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -130,6 +131,7 @@ func main() {
 	}
 
 	setupLog.Info("starting manager")
+	setupLog.Info("version", "version", version.Version, "branch", version.Branch, "revision", version.Revision, "builddate", version.BuildDate)
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)

@@ -1,3 +1,10 @@
+COMMIT                := $(shell git rev-parse HEAD)
+COMMIT_SHORT          := $(shell git rev-parse --short HEAD)
+DATE                  := $(shell date +%Y-%m-%d)
+BRANCH                := $(shell git rev-parse --abbrev-ref HEAD)
+VERSION               ?= ${BRANCH}-${COMMIT_SHORT}
+PKG_LDFLAGS           := github.com/prometheus/common/version
+LDFLAGS               := -s -w -X ${PKG_LDFLAGS}.Version=${VERSION} -X ${PKG_LDFLAGS}.Revision=${COMMIT} -X ${PKG_LDFLAGS}.BuildDate=${DATE} -X ${PKG_LDFLAGS}.Branch=${BRANCH}
 
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
@@ -82,13 +89,16 @@ lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 
 ##@ Build
 
+.PHONY: golangci-build
+golangci-build: ## Build manager binary.
+	go build -ldflags "${LDFLAGS}" -a -o bin/manager cmd/main.go
+
 .PHONY: build
-build: manifests generate fmt vet ## Build manager binary.
-	go build -o bin/manager cmd/main.go
+build: manifests generate fmt vet golangci-build ## Build manager binary.
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
-	go run ./cmd/main.go
+	go run -ldflags "${LDFLAGS}" ./cmd/main.go
 
 # If you wish to build the manager image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
