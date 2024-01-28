@@ -9,8 +9,7 @@ on:
 
   push:
     branches:
-      - "main"
-      - "feat-**"
+      - "kwasm-lifecycle-manager"
 
 jobs:
   build:
