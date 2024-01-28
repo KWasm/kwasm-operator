@@ -58,5 +58,5 @@ jobs:
         name: Set output parameters
         run: |
           echo "repository=ghcr.io/${{ env.IMG_REPOSITORY_NAME }}/kwasm-operator" >> $GITHUB_OUTPUT
-          echo "version=${{ ${{ env.VERSION }} }}" >> $GITHUB_OUTPUT
+          echo "version=${{ env.VERSION }}" >> $GITHUB_OUTPUT
           echo "digest=${{ steps.build-image.outputs.digest }}" >> $GITHUB_OUTPUT
