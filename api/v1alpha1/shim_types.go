@@ -1,5 +1,5 @@
 /*
-Copyright 2023.
+Copyright 2024.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1beta1
+package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,6 +29,7 @@ type ShimSpec struct {
 }
 
 type FetchStrategy struct {
+	Type     string       `json:"type"`
 	AnonHttp AnonHttpSpec `json:"anonHttp"`
 }
 
@@ -42,7 +43,7 @@ type RuntimeClassSpec struct {
 
 type RolloutStrategy struct {
 	Type    string      `json:"type"`
-	Rolling RollingSpec `json:"rolling"`
+	Rolling RollingSpec `json:"rolling,omitempty"`
 }
 
 type RollingSpec struct {
