@@ -3,8 +3,8 @@ kind: Shim
 metadata:
   name: wws-v1
 spec:
-  # nodeSelector:
-  #   wasm: "true"
+  nodeSelector:
+    wws: "true"
 
   fetchStrategy:
     type: annonymousHttp
@@ -13,10 +13,7 @@ spec:
 
   runtimeClass:
     name: wws-v1
+    handler: wws
 
   rolloutStrategy:
     type: recreate
-  # rolloutStrategy:
-  #   type: rolling
-  #   rolling:
-  #     maxUpdate: 5

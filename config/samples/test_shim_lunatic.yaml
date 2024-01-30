@@ -3,8 +3,8 @@ kind: Shim
 metadata:
   name: lunatic-v1
 spec:
-  # nodeSelector:
-  #   wasm: "true"
+  nodeSelector:
+    lunatic: "true"
 
   fetchStrategy:
     type: annonymousHttp
@@ -13,10 +13,7 @@ spec:
 
   runtimeClass:
     name: lunatic-v1
+    handler: lunatic
 
   rolloutStrategy:
     type: recreate
-  # rolloutStrategy:
-  #   type: rolling
-  #   rolling:
-  #     maxUpdate: 5

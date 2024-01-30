@@ -13,10 +13,7 @@ spec:
 
   runtimeClass:
     name: wasmtime-spin-v2
+    handler: spin
 
   rolloutStrategy:
     type: recreate
-  # rolloutStrategy:
-  #   type: rolling
-  #   rolling:
-  #     maxUpdate: 5
