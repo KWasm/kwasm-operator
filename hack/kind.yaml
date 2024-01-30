@@ -1,0 +1,17 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+- role: control-plane
+- role: worker
+  labels:
+    spin: true
+- role: worker
+  labels:
+    wws: true
+    spin: true
+- role: worker
+  labels:
+    slight: true
+- role: worker
+  labels:
+    lunatic: true
