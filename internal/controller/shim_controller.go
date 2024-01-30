@@ -148,11 +148,6 @@ func (sr *ShimReconciler) handleDeployJob(ctx context.Context, shim *kwasmv1.Shi
 					return ctrl.Result{}, err
 				}
 
-				// if err = sr.Create(ctx, job); err != nil {
-				// 	log.Err(err).Msg("Failed to create new Job " + req.Namespace + " Job.Name " + req.Name)
-				// 	return ctrl.Result{}, fmt.Errorf("failed to create new job: %w", err)
-				// }
-
 				// We want to use server-side apply https://kubernetes.io/docs/reference/using-api/server-side-apply
 				patchMethod := client.Apply
 				patchOptions := &client.PatchOptions{
@@ -160,7 +155,6 @@ func (sr *ShimReconciler) handleDeployJob(ctx context.Context, shim *kwasmv1.Shi
 					FieldManager: "shim-operator",
 				}
 
-				log.Error().Msgf("JOB %v", job)
 				// Note that we reconcile even if the deployment is in a good state. We rely on controller-runtime to rate limit us.
 				if err := sr.Client.Patch(ctx, job, patchMethod, patchOptions); err != nil {
 					log.Error().Msgf("Unable to reconcile Job %s", err)
@@ -179,7 +173,7 @@ func (sr *ShimReconciler) handleDeployJob(ctx context.Context, shim *kwasmv1.Shi
 
 func (sr *ShimReconciler) createJobManifest(shim *kwasmv1.Shim, node *corev1.Node, req ctrl.Request) (*batchv1.Job, error) {
 	priv := true
-	name := shim.Name + "-provisioner"
+	name := node.Name + "." + shim.Name
 	nameMax := int(math.Min(float64(len(name)), 63))
 
 	job := &batchv1.Job{
@@ -221,7 +215,11 @@ func (sr *ShimReconciler) createJobManifest(shim *kwasmv1.Shim, node *corev1.Nod
 								Value: shim.Spec.FetchStrategy.AnonHttp.Location,
 							},
 							{
-								Name:  "SHIM_HANDLER",
+								Name:  "RUNTIMECLASS_NAME",
+								Value: shim.Spec.RuntimeClass.Name,
+							},
+							{
+								Name:  "RUNTIMECLASS_HANDLER",
 								Value: shim.Spec.RuntimeClass.Handler,
 							},
 							{
