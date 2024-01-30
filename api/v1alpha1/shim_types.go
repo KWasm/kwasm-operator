@@ -38,7 +38,8 @@ type AnonHttpSpec struct {
 }
 
 type RuntimeClassSpec struct {
-	Name string `json:"name"`
+	Name    string `json:"name"`
+	Handler string `json:"handler"`
 }
 
 type RolloutStrategy struct {

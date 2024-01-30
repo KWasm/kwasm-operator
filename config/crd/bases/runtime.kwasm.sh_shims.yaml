@@ -69,9 +69,12 @@ spec:
                 type: object
               runtimeClass:
                 properties:
+                  handler:
+                    type: string
                   name:
                     type: string
                 required:
+                - handler
                 - name
                 type: object
             required:

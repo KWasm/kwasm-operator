@@ -94,14 +94,16 @@ func (sr *ShimReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	}
 
 	// 2. Check if referenced runtimeClass exists in cluster
-	// TODO: is runtimeClass optional or mandatory?
 	rcExists, err := sr.runtimeClassExists(ctx, &shimResource)
 	if err != nil {
 		log.Error().Msgf("RuntimeClass issue: %s", err)
 	}
 	if !rcExists {
 		log.Info().Msgf("RuntimeClass '%s' not found", shimResource.Spec.RuntimeClass.Name)
-		// return ctrl.Result{}, nil
+		_, err = sr.handleDeployRuntmeClass(ctx, &shimResource)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
 	}
 
 	// 3. Get list of nodes
@@ -158,6 +160,7 @@ func (sr *ShimReconciler) handleDeployJob(ctx context.Context, shim *kwasmv1.Shi
 					FieldManager: "shim-operator",
 				}
 
+				log.Error().Msgf("JOB %v", job)
 				// Note that we reconcile even if the deployment is in a good state. We rely on controller-runtime to rate limit us.
 				if err := sr.Client.Patch(ctx, job, patchMethod, patchOptions); err != nil {
 					log.Error().Msgf("Unable to reconcile Job %s", err)
@@ -218,6 +221,10 @@ func (sr *ShimReconciler) createJobManifest(shim *kwasmv1.Shim, node *corev1.Nod
 								Value: shim.Spec.FetchStrategy.AnonHttp.Location,
 							},
 							{
+								Name:  "SHIM_HANDLER",
+								Value: shim.Spec.RuntimeClass.Handler,
+							},
+							{
 								Name:  "SHIM_FETCH_STRATEGY",
 								Value: "/mnt/node-root",
 							},
@@ -239,6 +246,61 @@ func (sr *ShimReconciler) createJobManifest(shim *kwasmv1.Shim, node *corev1.Nod
 	}
 
 	return job, nil
+}
+
+func (sr *ShimReconciler) handleDeployRuntmeClass(ctx context.Context, shim *kwasmv1.Shim) (ctrl.Result, error) {
+	log.Info().Msgf("Deploying RuntimeClass: %s", shim.Spec.RuntimeClass.Name)
+	rc, err := sr.createRuntimeClassManifest(shim)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	// We want to use server-side apply https://kubernetes.io/docs/reference/using-api/server-side-apply
+	patchMethod := client.Apply
+	patchOptions := &client.PatchOptions{
+		Force:        ptr(true), // Force b/c any fields we are setting need to be owned by the spin-operator
+		FieldManager: "shim-operator",
+	}
+
+	// Note that we reconcile even if the deployment is in a good state. We rely on controller-runtime to rate limit us.
+	if err := sr.Client.Patch(ctx, rc, patchMethod, patchOptions); err != nil {
+		log.Error().Msgf("Unable to reconcile RuntimeClass %s", err)
+		return ctrl.Result{}, err
+	}
+
+	return ctrl.Result{}, nil
+}
+
+func (sr *ShimReconciler) createRuntimeClassManifest(shim *kwasmv1.Shim) (*nodev1.RuntimeClass, error) {
+	name := shim.Name
+	nameMax := int(math.Min(float64(len(name)), 63))
+
+	nodeSelector := shim.Spec.NodeSelector
+	if nodeSelector == nil {
+		nodeSelector = map[string]string{}
+	}
+
+	rc := &nodev1.RuntimeClass{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "RuntimeClass",
+			APIVersion: "node.k8s.io/v1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name[:nameMax],
+			Namespace: "default",
+			Labels:    map[string]string{name[:nameMax]: "true"},
+		},
+		Handler: shim.Spec.RuntimeClass.Handler,
+		Scheduling: &nodev1.Scheduling{
+			NodeSelector: nodeSelector,
+		},
+	}
+
+	if err := ctrl.SetControllerReference(shim, rc, sr.Scheme); err != nil {
+		return nil, fmt.Errorf("failed to set controller reference: %w", err)
+	}
+
+	return rc, nil
 }
 
 // handleDeletion deletes all possible child resources of a Shim. It will ignore NotFound errors.
