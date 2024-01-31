@@ -191,3 +191,14 @@ $(CONTROLLER_GEN): $(LOCALBIN)
 envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+
+.PHONY: create-test-cluster
+create-kind-cluster:
+	kind create cluster --config ./hack/kind.yaml --name kwasm
+
+.PHONY: kind-delete
+kind-delete:
+	kind delete cluster --name kwasm
+
+.PHONY: kind
+kind: create-kind-cluster install
