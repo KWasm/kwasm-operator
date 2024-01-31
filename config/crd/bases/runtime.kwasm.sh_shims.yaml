@@ -14,7 +14,11 @@ spec:
     singular: shim
   scope: Cluster
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.runtimeClass.name
+      name: RuntimeClass
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: Shim is the Schema for the shims API
@@ -157,3 +161,4 @@ spec:
         type: object
     served: true
     storage: true
+    subresources: {}

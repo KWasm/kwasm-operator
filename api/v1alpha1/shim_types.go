@@ -59,6 +59,7 @@ type ShimStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:path=shims,scope=Cluster
+// +kubebuilder:printcolumn:JSONPath=".spec.runtimeClass.name",name=RuntimeClass,type=string
 // Shim is the Schema for the shims API
 type Shim struct {
 	metav1.TypeMeta   `json:",inline"`
