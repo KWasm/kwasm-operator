@@ -18,6 +18,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -51,18 +52,18 @@ func init() {
 }
 
 // getWatchNamespace returns the Namespace the operator should be watching for changes
-// func getWatchNamespace() string {
-// 	// WatchNamespaceEnvVar is the constant for env variable WATCH_NAMESPACE
-// 	// which specifies the Namespace to watch.
-// 	// An empty value means the operator will fail to start.
-// 	watchNamespaceEnvVar := "CONTROLLER_NAMESPACE"
+func getWatchNamespace() string {
+	// WatchNamespaceEnvVar is the constant for env variable WATCH_NAMESPACE
+	// which specifies the Namespace to watch.
+	// An empty value means the operator will fail to start.
+	watchNamespaceEnvVar := "CONTROLLER_NAMESPACE"
 
-// 	ns, found := os.LookupEnv(watchNamespaceEnvVar)
-// 	if !found {
-// 		panic(fmt.Sprintf("env var '%s' must be set", watchNamespaceEnvVar))
-// 	}
-// 	return ns
-// }
+	ns, found := os.LookupEnv(watchNamespaceEnvVar)
+	if !found {
+		panic(fmt.Sprintf("env var '%s' must be set", watchNamespaceEnvVar))
+	}
+	return ns
+}
 
 func main() {
 	var metricsAddr string

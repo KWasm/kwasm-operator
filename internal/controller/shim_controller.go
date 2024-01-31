@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"os"
 
 	"github.com/rs/zerolog/log"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -132,6 +133,7 @@ func (sr *ShimReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	return ctrl.Result{}, nil
 }
 
+// handleDeployJob deploys a Job to each node in a list.
 func (sr *ShimReconciler) handleDeployJob(ctx context.Context, shim *kwasmv1.Shim, nodes *corev1.NodeList, req ctrl.Request) (ctrl.Result, error) {
 	switch shim.Spec.RolloutStrategy.Type {
 	case "rolling":
@@ -142,8 +144,9 @@ func (sr *ShimReconciler) handleDeployJob(ctx context.Context, shim *kwasmv1.Shi
 		{
 			log.Debug().Msgf("Recreate strategy selected")
 			for i := range nodes.Items {
-				log.Info().Msgf("Deploying on node: %s", nodes.Items[i].Name)
-				job, err := sr.createJobManifest(shim, &nodes.Items[i], req)
+				node := nodes.Items[i]
+				log.Info().Msgf("Deploying on node: %s", node.Name)
+				job, err := sr.createJobManifest(shim, &node, req)
 				if err != nil {
 					return ctrl.Result{}, err
 				}
@@ -171,6 +174,7 @@ func (sr *ShimReconciler) handleDeployJob(ctx context.Context, shim *kwasmv1.Shi
 	return ctrl.Result{}, nil
 }
 
+// createJobManifest creates a Job manifest for a Shim.
 func (sr *ShimReconciler) createJobManifest(shim *kwasmv1.Shim, node *corev1.Node, req ctrl.Request) (*batchv1.Job, error) {
 	priv := true
 	name := node.Name + "." + shim.Name
@@ -183,7 +187,7 @@ func (sr *ShimReconciler) createJobManifest(shim *kwasmv1.Shim, node *corev1.Nod
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name[:nameMax],
-			Namespace: "default",
+			Namespace: os.Getenv("CONTROLLER_NAMESPACE"),
 			Labels:    map[string]string{name[:nameMax]: "true"},
 		},
 		Spec: batchv1.JobSpec{
@@ -246,6 +250,7 @@ func (sr *ShimReconciler) createJobManifest(shim *kwasmv1.Shim, node *corev1.Nod
 	return job, nil
 }
 
+// handleDeployRuntmeClass deploys a RuntimeClass for a Shim.
 func (sr *ShimReconciler) handleDeployRuntmeClass(ctx context.Context, shim *kwasmv1.Shim) (ctrl.Result, error) {
 	log.Info().Msgf("Deploying RuntimeClass: %s", shim.Spec.RuntimeClass.Name)
 	rc, err := sr.createRuntimeClassManifest(shim)
@@ -269,6 +274,7 @@ func (sr *ShimReconciler) handleDeployRuntmeClass(ctx context.Context, shim *kwa
 	return ctrl.Result{}, nil
 }
 
+// createRuntimeClassManifest creates a RuntimeClass manifest for a Shim.
 func (sr *ShimReconciler) createRuntimeClassManifest(shim *kwasmv1.Shim) (*nodev1.RuntimeClass, error) {
 	name := shim.Name
 	nameMax := int(math.Min(float64(len(name)), 63))
@@ -285,7 +291,7 @@ func (sr *ShimReconciler) createRuntimeClassManifest(shim *kwasmv1.Shim) (*nodev
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name[:nameMax],
-			Namespace: "default",
+			Namespace: os.Getenv("CONTROLLER_NAMESPACE"),
 			Labels:    map[string]string{name[:nameMax]: "true"},
 		},
 		Handler: shim.Spec.RuntimeClass.Handler,
@@ -328,9 +334,10 @@ func (sr *ShimReconciler) findJobsForShim(ctx context.Context, shim *kwasmv1.Shi
 
 	jobs := &batchv1.JobList{}
 
-	err := sr.List(ctx, jobs, client.InNamespace("default"), client.MatchingLabels(map[string]string{name[:nameMax]: "true"}))
+	err := sr.List(ctx, jobs, client.InNamespace(os.Getenv("CONTROLLER_NAMESPACE")), client.MatchingLabels(map[string]string{name[:nameMax]: "true"}))
+
 	log.Debug().Msgf("Found %d jobs", len(jobs.Items))
-	log.Debug().Msgf("Found: %v", len(jobs.Items))
+
 	if err != nil {
 		return nil, err
 	}
