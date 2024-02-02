@@ -54,12 +54,16 @@ type RollingSpec struct {
 // ShimStatus defines the observed state of Shim
 // +operator-sdk:csv:customresourcedefinitions:type=status
 type ShimStatus struct {
-	Conditions []metav1.Condition `json:"conditions,omitempty"`
+	Conditions     []metav1.Condition `json:"conditions,omitempty"`
+	NodeCount      int                `json:"nodes"`
+	NodeReadyCount int                `json:"nodesReady"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:path=shims,scope=Cluster
 // +kubebuilder:printcolumn:JSONPath=".spec.runtimeClass.name",name=RuntimeClass,type=string
+// +kubebuilder:printcolumn:JSONPath=".status.nodesReady",name=Ready,type=integer
+// +kubebuilder:printcolumn:JSONPath=".status.nodes",name=Nodes,type=integer
 // Shim is the Schema for the shims API
 type Shim struct {
 	metav1.TypeMeta   `json:",inline"`
