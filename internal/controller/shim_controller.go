@@ -31,8 +31,12 @@ import (
 	nodev1 "k8s.io/api/node/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	kwasmv1 "github.com/kwasm/kwasm-operator/api/v1alpha1"
 )
@@ -57,7 +61,19 @@ type ShimReconciler struct {
 func (sr *ShimReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&kwasmv1.Shim{}).
+		// As we create and own the created jobs
+		// Jobs are important for us to update the Shims installation status
+		// on respective nodes
 		Owns(&batchv1.Job{}).
+		// As we don't own nodes, but need to react on node label changes,
+		// we need to watch node label changes.
+		// Whenever a label changes, we want to reconcile Shims, to make sure
+		// that the shim is deployed on the node if it should be.
+		Watches(
+			&corev1.Node{},
+			handler.EnqueueRequestsFromMapFunc(sr.findShimsToReconcile),
+			builder.WithPredicates(predicate.LabelChangedPredicate{}),
+		).
 		Complete(sr)
 }
 
@@ -140,6 +156,32 @@ func (sr *ShimReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	}
 
 	return ctrl.Result{}, nil
+}
+
+// findShimsToReconcile finds all Shims that need to be reconciled.
+// This function is required e.g. to react on node label changes.
+// When the label of a node changes, we want to reconcile shims to make sure
+// that the shim is deployed on the node if it should be.
+func (sr *ShimReconciler) findShimsToReconcile(ctx context.Context, node client.Object) []reconcile.Request {
+	shimList := &kwasmv1.ShimList{}
+	listOps := &client.ListOptions{
+		Namespace: "",
+	}
+	err := sr.List(context.TODO(), shimList, listOps)
+	if err != nil {
+		return []reconcile.Request{}
+	}
+
+	requests := make([]reconcile.Request, len(shimList.Items))
+	for i, item := range shimList.Items {
+		requests[i] = reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      item.GetName(),
+				Namespace: item.GetNamespace(),
+			},
+		}
+	}
+	return requests
 }
 
 func (sr *ShimReconciler) updateStatus(ctx context.Context, shim *kwasmv1.Shim, nodes *corev1.NodeList) error {
