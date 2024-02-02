@@ -7,6 +7,32 @@ rules:
 - apiGroups:
   - runtime.kwasm.sh
   resources:
+  - jobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - runtime.kwasm.sh
+  resources:
+  - jobs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - runtime.kwasm.sh
+  resources:
+  - jobs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - runtime.kwasm.sh
+  resources:
   - shims
   verbs:
   - create

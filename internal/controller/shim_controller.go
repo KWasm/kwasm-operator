@@ -46,8 +46,7 @@ const (
 // ShimReconciler reconciles a Shim object
 type ShimReconciler struct {
 	client.Client
-	Scheme        *runtime.Scheme
-	AutoProvision bool
+	Scheme *runtime.Scheme
 }
 
 //+kubebuilder:rbac:groups=runtime.kwasm.sh,resources=shims,verbs=get;list;watch;create;update;patch;delete
@@ -145,23 +144,19 @@ func (sr *ShimReconciler) handleDeployJob(ctx context.Context, shim *kwasmv1.Shi
 			log.Debug().Msgf("Recreate strategy selected")
 			for i := range nodes.Items {
 				node := nodes.Items[i]
-				log.Info().Msgf("Deploying on node: %s", node.Name)
-				job, err := sr.createJobManifest(shim, &node, req)
-				if err != nil {
-					return ctrl.Result{}, err
-				}
 
-				// We want to use server-side apply https://kubernetes.io/docs/reference/using-api/server-side-apply
-				patchMethod := client.Apply
-				patchOptions := &client.PatchOptions{
-					Force:        ptr(true), // Force b/c any fields we are setting need to be owned by the spin-operator
-					FieldManager: "shim-operator",
-				}
+				shimProvisioned := node.Labels[shim.Name] == "provisioned"
+				shimPending := node.Labels[shim.Name] == "pending"
 
-				// Note that we reconcile even if the deployment is in a good state. We rely on controller-runtime to rate limit us.
-				if err := sr.Client.Patch(ctx, job, patchMethod, patchOptions); err != nil {
-					log.Error().Msgf("Unable to reconcile Job %s", err)
-					return ctrl.Result{}, err
+				if !shimProvisioned && !shimPending {
+
+					err := sr.deployJobOnNode(ctx, shim, node, req)
+					if err != nil {
+						return ctrl.Result{}, err
+					}
+
+				} else {
+					log.Info().Msgf("Shim %s already provisioned on Node %s", shim.Name, node.Name)
 				}
 			}
 		}
@@ -172,6 +167,48 @@ func (sr *ShimReconciler) handleDeployJob(ctx context.Context, shim *kwasmv1.Shi
 	}
 
 	return ctrl.Result{}, nil
+}
+
+// deployJobOnNode deploys a Job to a Node.
+func (sr *ShimReconciler) deployJobOnNode(ctx context.Context, shim *kwasmv1.Shim, node corev1.Node, req ctrl.Request) error {
+	log.Info().Msgf("Deploying Shim %s on node: %s", shim.Name, node.Name)
+
+	if err := sr.updateNodeLabels(ctx, &node, shim, "pending", req); err != nil {
+		log.Error().Msgf("Unable to update node label %s: %s", shim.Name, err)
+	}
+
+	job, err := sr.createJobManifest(shim, &node, req)
+	if err != nil {
+		return err
+	}
+
+	// We want to use server-side apply https://kubernetes.io/docs/reference/using-api/server-side-apply
+	patchMethod := client.Apply
+	patchOptions := &client.PatchOptions{
+		Force:        ptr(true), // Force b/c any fields we are setting need to be owned by the spin-operator
+		FieldManager: "shim-operator",
+	}
+
+	// We rely on controller-runtime to rate limit us.
+	if err := sr.Client.Patch(ctx, job, patchMethod, patchOptions); err != nil {
+		log.Error().Msgf("Unable to reconcile Job %s", err)
+		if err := sr.updateNodeLabels(ctx, &node, shim, "failed", req); err != nil {
+			log.Error().Msgf("Unable to update node label %s: %s", shim.Name, err)
+		}
+		return err
+	}
+
+	return nil
+}
+
+func (sr *ShimReconciler) updateNodeLabels(ctx context.Context, node *corev1.Node, shim *kwasmv1.Shim, status string, req ctrl.Request) error {
+	node.Labels[shim.Name] = status
+
+	if err := sr.Update(ctx, node); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // createJobManifest creates a Job manifest for a Shim.
@@ -188,7 +225,11 @@ func (sr *ShimReconciler) createJobManifest(shim *kwasmv1.Shim, node *corev1.Nod
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name[:nameMax],
 			Namespace: os.Getenv("CONTROLLER_NAMESPACE"),
-			Labels:    map[string]string{name[:nameMax]: "true"},
+			Labels: map[string]string{
+				name[:nameMax]:      "true",
+				"kwasm.sh/shimName": shim.Name,
+				"kwasm.sh/job":      "true",
+			},
 		},
 		Spec: batchv1.JobSpec{
 			Template: corev1.PodTemplateSpec{
