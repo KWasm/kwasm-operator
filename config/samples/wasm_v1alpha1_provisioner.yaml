@@ -1,6 +1,0 @@
-apiVersion: wasm.kwasm.sh/v1alpha1
-kind: Provisioner
-metadata:
-  name: provisioner-sample
-spec:
-  # TODO(user): Add fields here
