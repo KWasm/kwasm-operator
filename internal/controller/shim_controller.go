@@ -98,23 +98,12 @@ func (sr *ShimReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 	}
 
 	// 2. Get list of nodes where this shim is supposed to be deployed on
-	nodes := &corev1.NodeList{}
-	if shimResource.Spec.NodeSelector != nil {
-		// 3.1 that match the nodeSelector
-		err := sr.List(ctx, nodes, client.InNamespace(req.Namespace), client.MatchingLabels(shimResource.Spec.NodeSelector))
-		if err != nil {
-			return ctrl.Result{}, err
-		}
-	} else {
-		// 3.2 or no selector at all (all nodes)
-		err := sr.List(ctx, nodes, client.InNamespace(req.Namespace))
-		if err != nil {
-			return ctrl.Result{}, err
-		}
+	nodes, err := sr.getNodeListFromShimsNodeSelctor(ctx, &shimResource)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 
-	// TODO: Update the number of nodes that are relevant to this shim
-	err := sr.updateStatus(ctx, &shimResource, nodes)
+	err = sr.updateStatus(ctx, &shimResource, nodes)
 	if err != nil {
 		log.Error().Msgf("Unable to update node count: %s", err)
 		return ctrl.Result{}, err
@@ -122,12 +111,12 @@ func (sr *ShimReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	// Shim has been requested for deletion, delete the child resources
 	if !shimResource.DeletionTimestamp.IsZero() {
-		log.Debug().Msg("deletion started!")
+		log.Debug().Msgf("Deleting shim %s", shimResource.Name)
 		err := sr.handleDeletion(ctx, &shimResource)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
-		log.Debug().Msg("removing finalizer!")
+
 		err = sr.removeFinalizer(ctx, &shimResource)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
@@ -198,6 +187,8 @@ func (sr *ShimReconciler) updateStatus(ctx context.Context, shim *kwasmv1.Shim, 
 			}
 		}
 	}
+
+	// TODO: include proper status conditions to update
 
 	if err := sr.Update(ctx, shim); err != nil {
 		log.Error().Msgf("Unable to update status %s", err)
@@ -436,7 +427,14 @@ func (sr *ShimReconciler) createRuntimeClassManifest(shim *kwasmv1.Shim) (*nodev
 
 // handleDeletion deletes all possible child resources of a Shim. It will ignore NotFound errors.
 func (sr *ShimReconciler) handleDeletion(ctx context.Context, shim *kwasmv1.Shim) error {
-	err := sr.deleteShim(ctx, shim)
+	// TODO: deploy uninstall job here
+	// err := sr.handleUninstall(ctx, shim)
+	// if client.IgnoreNotFound(err) != nil {
+	// 	return err
+	// }
+
+	// remove shim labels from node
+	err := sr.removeShimLabelsFromNodes(ctx, shim)
 	if client.IgnoreNotFound(err) != nil {
 		return err
 	}
@@ -444,77 +442,42 @@ func (sr *ShimReconciler) handleDeletion(ctx context.Context, shim *kwasmv1.Shim
 	return nil
 }
 
-// findShim finds a ShimResource.
-func (sr *ShimReconciler) findShim(ctx context.Context, shim *kwasmv1.Shim) (*kwasmv1.Shim, error) {
-	var s kwasmv1.Shim
-	err := sr.Client.Get(ctx, types.NamespacedName{Name: shim.Name, Namespace: shim.Namespace}, &s)
-	if err != nil {
-		return nil, err
-	}
-	return &s, nil
-}
-
-// findJobsForShim finds all jobs related to a ShimResource.
-func (sr *ShimReconciler) findJobsForShim(ctx context.Context, shim *kwasmv1.Shim) (*batchv1.JobList, error) {
+func (sr *ShimReconciler) removeShimLabelsFromNodes(ctx context.Context, shim *kwasmv1.Shim) error {
 	log := log.Ctx(ctx)
 
-	name := shim.Name + "-provisioner"
-	nameMax := int(math.Min(float64(len(name)), 63))
-
-	jobs := &batchv1.JobList{}
-
-	err := sr.List(ctx, jobs, client.InNamespace(os.Getenv("CONTROLLER_NAMESPACE")), client.MatchingLabels(map[string]string{name[:nameMax]: "true"}))
-
-	log.Debug().Msgf("Found %d jobs", len(jobs.Items))
-
-	if err != nil {
-		return nil, err
-	}
-
-	return jobs, nil
-}
-
-// deleteShim deletes a ShimResource.
-func (sr *ShimReconciler) deleteShim(ctx context.Context, shim *kwasmv1.Shim) error {
-	log := log.Ctx(ctx)
-	log.Info().Msgf("Deleting Shim... %s", shim.Name)
-
-	s, err := sr.findShim(ctx, shim)
+	nodes, err := sr.getNodeListFromShimsNodeSelctor(ctx, shim)
 	if err != nil {
 		return err
 	}
 
-	err = sr.deleteJobs(ctx, s)
-	if err != nil {
-		return err
-	}
-
-	// TODO: if Shim resource is deleted, it needs to be removed from nodes as well
-	err = sr.Client.Delete(ctx, s)
-	if err != nil {
-		return err
-	}
-
-	log.Info().Msgf("Successfully deleted Shim... %s", shim.Name)
-
-	return nil
-}
-
-// deleteJobs deletes all Jobs associated with a ShimResource.
-func (sr *ShimReconciler) deleteJobs(ctx context.Context, shim *kwasmv1.Shim) error {
-	jobsList, err := sr.findJobsForShim(ctx, shim)
-	if err != nil {
-		return err
-	}
-
-	for _, job := range jobsList.Items {
-		err = sr.Client.Delete(ctx, &job)
-		if err != nil {
-			return err
+	for _, node := range nodes.Items {
+		if _, ok := node.Labels[shim.Name]; ok {
+			log.Debug().Msgf("Removing label %s from node %s", shim.Name, node.Name)
+			delete(node.Labels, shim.Name)
+			if err := sr.Update(ctx, &node); err != nil {
+				log.Error().Msgf("Unable to remove label %s from node %s: %s", shim.Name, node.Name, err)
+			}
 		}
 	}
 
 	return nil
+}
+
+func (sr *ShimReconciler) getNodeListFromShimsNodeSelctor(ctx context.Context, shim *kwasmv1.Shim) (*corev1.NodeList, error) {
+	nodes := &corev1.NodeList{}
+	if shim.Spec.NodeSelector != nil {
+		err := sr.List(ctx, nodes, client.InNamespace(shim.Namespace), client.MatchingLabels(shim.Spec.NodeSelector))
+		if err != nil {
+			return &corev1.NodeList{}, err
+		}
+	} else {
+		err := sr.List(ctx, nodes, client.InNamespace(shim.Namespace))
+		if err != nil {
+			return &corev1.NodeList{}, err
+		}
+	}
+
+	return nodes, nil
 }
 
 // runtimeClassExists checks whether a RuntimeClass for a Shim exists.
@@ -522,7 +485,7 @@ func (sr *ShimReconciler) runtimeClassExists(ctx context.Context, shim *kwasmv1.
 	log := log.Ctx(ctx)
 
 	if shim.Spec.RuntimeClass.Name != "" {
-		rc, err := sr.findRuntimeClass(ctx, shim)
+		rc, err := sr.getRuntimeClass(ctx, shim)
 		if err != nil {
 			log.Debug().Msgf("No RuntimeClass '%s' found", shim.Spec.RuntimeClass.Name)
 
@@ -532,13 +495,13 @@ func (sr *ShimReconciler) runtimeClassExists(ctx context.Context, shim *kwasmv1.
 			return true, nil
 		}
 	} else {
-		log.Debug().Msg("RuntimeClass not defined")
+		log.Debug().Msg("Shim.Spec.RuntimeClass not defined")
 		return false, nil
 	}
 }
 
-// findRuntimeClass finds a RuntimeClass.
-func (sr *ShimReconciler) findRuntimeClass(ctx context.Context, shim *kwasmv1.Shim) (*nodev1.RuntimeClass, error) {
+// getRuntimeClass finds a RuntimeClass.
+func (sr *ShimReconciler) getRuntimeClass(ctx context.Context, shim *kwasmv1.Shim) (*nodev1.RuntimeClass, error) {
 	rc := nodev1.RuntimeClass{}
 	err := sr.Client.Get(ctx, types.NamespacedName{Name: shim.Spec.RuntimeClass.Name, Namespace: shim.Namespace}, &rc)
 	if err != nil {
