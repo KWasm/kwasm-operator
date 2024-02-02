@@ -2,6 +2,12 @@ apiVersion: runtime.kwasm.sh/v1alpha1
 kind: Shim
 metadata:
   name: wasmtime-spin-v2
+  labels:
+    app.kubernetes.io/name: wasmtime-spin-v2
+    app.kubernetes.io/instance: wasmtime-spin-v2
+    app.kubernetes.io/part-of: kwasm-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: kwasm-operator
 spec:
   nodeSelector:
     spin: "true"
