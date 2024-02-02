@@ -155,7 +155,8 @@ func (sr *ShimReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 		log.Info().Msg("No nodes found")
 	}
 
-	return ctrl.Result{}, nil
+	err = sr.ensureFinalizer(ctx, &shimResource)
+	return ctrl.Result{}, client.IgnoreNotFound(err)
 }
 
 // findShimsToReconcile finds all Shims that need to be reconciled.
@@ -550,6 +551,17 @@ func (sr *ShimReconciler) findRuntimeClass(ctx context.Context, shim *kwasmv1.Sh
 func (sr *ShimReconciler) removeFinalizer(ctx context.Context, shim *kwasmv1.Shim) error {
 	if controllerutil.ContainsFinalizer(shim, KwasmOperatorFinalizer) {
 		controllerutil.RemoveFinalizer(shim, KwasmOperatorFinalizer)
+		if err := sr.Client.Update(ctx, shim); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ensureFinalizer ensures the finalizer is present on a Shim resource.
+func (sr *ShimReconciler) ensureFinalizer(ctx context.Context, shim *kwasmv1.Shim) error {
+	if !controllerutil.ContainsFinalizer(shim, KwasmOperatorFinalizer) {
+		controllerutil.AddFinalizer(shim, KwasmOperatorFinalizer)
 		if err := sr.Client.Update(ctx, shim); err != nil {
 			return err
 		}
