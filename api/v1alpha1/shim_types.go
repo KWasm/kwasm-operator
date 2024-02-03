@@ -30,10 +30,10 @@ type ShimSpec struct {
 
 type FetchStrategy struct {
 	Type     string       `json:"type"`
-	AnonHttp AnonHttpSpec `json:"anonHttp"`
+	AnonHTTP AnonHTTPSpec `json:"anonHttp"`
 }
 
-type AnonHttpSpec struct {
+type AnonHTTPSpec struct {
 	Location string `json:"location"`
 }
 

@@ -18,7 +18,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -49,20 +48,6 @@ func init() {
 
 	utilruntime.Must(runtimev1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
-}
-
-// getWatchNamespace returns the Namespace the operator should be watching for changes
-func getWatchNamespace() string {
-	// WatchNamespaceEnvVar is the constant for env variable WATCH_NAMESPACE
-	// which specifies the Namespace to watch.
-	// An empty value means the operator will fail to start.
-	watchNamespaceEnvVar := "   "
-
-	ns, found := os.LookupEnv(watchNamespaceEnvVar)
-	if !found {
-		panic(fmt.Sprintf("env var '%s' must be set", watchNamespaceEnvVar))
-	}
-	return ns
 }
 
 func main() {

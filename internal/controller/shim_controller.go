@@ -42,9 +42,9 @@ import (
 )
 
 const (
-	KwasmOperatorFinalizer      = "kwasm.sh/finalizer"
-	addKWasmNodeLabelAnnotation = "kwasm.sh/"
-	nodeNameLabel               = "kwasm.sh/"
+	KwasmOperatorFinalizer = "kwasm.sh/finalizer"
+	// addKWasmNodeLabelAnnotation = "kwasm.sh/"
+	// nodeNameLabel               = "kwasm.sh/"
 )
 
 // ShimReconciler reconciles a Shim object
@@ -136,7 +136,7 @@ func (sr *ShimReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	// 4. Deploy job to each node in list
 	if len(nodes.Items) != 0 {
-		_, err = sr.handleDeployJob(ctx, &shimResource, nodes, req)
+		_, err = sr.handleDeployJob(ctx, &shimResource, nodes)
 		if err != nil {
 			return ctrl.Result{}, err
 		}
@@ -153,11 +153,12 @@ func (sr *ShimReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 // When the label of a node changes, we want to reconcile shims to make sure
 // that the shim is deployed on the node if it should be.
 func (sr *ShimReconciler) findShimsToReconcile(ctx context.Context, node client.Object) []reconcile.Request {
+	_ = node
 	shimList := &kwasmv1.ShimList{}
 	listOps := &client.ListOptions{
 		Namespace: "",
 	}
-	err := sr.List(context.TODO(), shimList, listOps)
+	err := sr.List(ctx, shimList, listOps)
 	if err != nil {
 		return []reconcile.Request{}
 	}
@@ -180,7 +181,7 @@ func (sr *ShimReconciler) updateStatus(ctx context.Context, shim *kwasmv1.Shim, 
 	shim.Status.NodeCount = len(nodes.Items)
 	shim.Status.NodeReadyCount = 0
 
-	if len(nodes.Items) >= 0 {
+	if len(nodes.Items) > 0 {
 		for _, node := range nodes.Items {
 			if node.Labels[shim.Name] == "provisioned" {
 				shim.Status.NodeReadyCount++
@@ -196,15 +197,15 @@ func (sr *ShimReconciler) updateStatus(ctx context.Context, shim *kwasmv1.Shim, 
 
 	// Re-fetch shim to avoid "object has been modified" errors
 	if err := sr.Client.Get(ctx, types.NamespacedName{Name: shim.Name, Namespace: shim.Namespace}, shim); err != nil {
-		log.Error().Msgf("Unable to re-fetch app: %s", err)
-		return err
+		log.Error().Msgf("Unable to re-fetch shim: %s", err)
+		return fmt.Errorf("failed to fetch shim: %w", err)
 	}
 
 	return nil
 }
 
 // handleDeployJob deploys a Job to each node in a list.
-func (sr *ShimReconciler) handleDeployJob(ctx context.Context, shim *kwasmv1.Shim, nodes *corev1.NodeList, req ctrl.Request) (ctrl.Result, error) {
+func (sr *ShimReconciler) handleDeployJob(ctx context.Context, shim *kwasmv1.Shim, nodes *corev1.NodeList) (ctrl.Result, error) {
 	log := log.Ctx(ctx)
 
 	switch shim.Spec.RolloutStrategy.Type {
@@ -220,14 +221,11 @@ func (sr *ShimReconciler) handleDeployJob(ctx context.Context, shim *kwasmv1.Shi
 
 				shimProvisioned := node.Labels[shim.Name] == "provisioned"
 				shimPending := node.Labels[shim.Name] == "pending"
-
 				if !shimProvisioned && !shimPending {
-
-					err := sr.deployJobOnNode(ctx, shim, node, req)
+					err := sr.deployJobOnNode(ctx, shim, node)
 					if err != nil {
 						return ctrl.Result{}, err
 					}
-
 				} else {
 					log.Info().Msgf("Shim %s already provisioned on Node %s", shim.Name, node.Name)
 				}
@@ -243,16 +241,16 @@ func (sr *ShimReconciler) handleDeployJob(ctx context.Context, shim *kwasmv1.Shi
 }
 
 // deployJobOnNode deploys a Job to a Node.
-func (sr *ShimReconciler) deployJobOnNode(ctx context.Context, shim *kwasmv1.Shim, node corev1.Node, req ctrl.Request) error {
+func (sr *ShimReconciler) deployJobOnNode(ctx context.Context, shim *kwasmv1.Shim, node corev1.Node) error {
 	log := log.Ctx(ctx)
 
 	log.Info().Msgf("Deploying Shim %s on node: %s", shim.Name, node.Name)
 
-	if err := sr.updateNodeLabels(ctx, &node, shim, "pending", req); err != nil {
+	if err := sr.updateNodeLabels(ctx, &node, shim, "pending"); err != nil {
 		log.Error().Msgf("Unable to update node label %s: %s", shim.Name, err)
 	}
 
-	job, err := sr.createJobManifest(shim, &node, req)
+	job, err := sr.createJobManifest(shim, &node)
 	if err != nil {
 		return err
 	}
@@ -267,27 +265,27 @@ func (sr *ShimReconciler) deployJobOnNode(ctx context.Context, shim *kwasmv1.Shi
 	// We rely on controller-runtime to rate limit us.
 	if err := sr.Client.Patch(ctx, job, patchMethod, patchOptions); err != nil {
 		log.Error().Msgf("Unable to reconcile Job %s", err)
-		if err := sr.updateNodeLabels(ctx, &node, shim, "failed", req); err != nil {
+		if err := sr.updateNodeLabels(ctx, &node, shim, "failed"); err != nil {
 			log.Error().Msgf("Unable to update node label %s: %s", shim.Name, err)
 		}
-		return err
+		return fmt.Errorf("failed to reconcile job: %w", err)
 	}
 
 	return nil
 }
 
-func (sr *ShimReconciler) updateNodeLabels(ctx context.Context, node *corev1.Node, shim *kwasmv1.Shim, status string, req ctrl.Request) error {
+func (sr *ShimReconciler) updateNodeLabels(ctx context.Context, node *corev1.Node, shim *kwasmv1.Shim, status string) error {
 	node.Labels[shim.Name] = status
 
 	if err := sr.Update(ctx, node); err != nil {
-		return err
+		return fmt.Errorf("failed to update node labels: %w", err)
 	}
 
 	return nil
 }
 
 // createJobManifest creates a Job manifest for a Shim.
-func (sr *ShimReconciler) createJobManifest(shim *kwasmv1.Shim, node *corev1.Node, req ctrl.Request) (*batchv1.Job, error) {
+func (sr *ShimReconciler) createJobManifest(shim *kwasmv1.Shim, node *corev1.Node) (*batchv1.Job, error) {
 	priv := true
 	name := node.Name + "." + shim.Name
 	nameMax := int(math.Min(float64(len(name)), 63))
@@ -332,7 +330,7 @@ func (sr *ShimReconciler) createJobManifest(shim *kwasmv1.Shim, node *corev1.Nod
 							},
 							{
 								Name:  "SHIM_LOCATION",
-								Value: shim.Spec.FetchStrategy.AnonHttp.Location,
+								Value: shim.Spec.FetchStrategy.AnonHTTP.Location,
 							},
 							{
 								Name:  "RUNTIMECLASS_NAME",
@@ -371,7 +369,7 @@ func (sr *ShimReconciler) handleDeployRuntmeClass(ctx context.Context, shim *kwa
 	log := log.Ctx(ctx)
 
 	log.Info().Msgf("Deploying RuntimeClass: %s", shim.Spec.RuntimeClass.Name)
-	rc, err := sr.createRuntimeClassManifest(shim)
+	runtimeClass, err := sr.createRuntimeClassManifest(shim)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
@@ -384,9 +382,9 @@ func (sr *ShimReconciler) handleDeployRuntmeClass(ctx context.Context, shim *kwa
 	}
 
 	// Note that we reconcile even if the deployment is in a good state. We rely on controller-runtime to rate limit us.
-	if err := sr.Client.Patch(ctx, rc, patchMethod, patchOptions); err != nil {
+	if err := sr.Client.Patch(ctx, runtimeClass, patchMethod, patchOptions); err != nil {
 		log.Error().Msgf("Unable to reconcile RuntimeClass %s", err)
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("failed to reconcile RuntimeClass: %w", err)
 	}
 
 	return ctrl.Result{}, nil
@@ -402,7 +400,7 @@ func (sr *ShimReconciler) createRuntimeClassManifest(shim *kwasmv1.Shim) (*nodev
 		nodeSelector = map[string]string{}
 	}
 
-	rc := &nodev1.RuntimeClass{
+	runtimeClass := &nodev1.RuntimeClass{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "RuntimeClass",
 			APIVersion: "node.k8s.io/v1",
@@ -418,11 +416,11 @@ func (sr *ShimReconciler) createRuntimeClassManifest(shim *kwasmv1.Shim) (*nodev
 		},
 	}
 
-	if err := ctrl.SetControllerReference(shim, rc, sr.Scheme); err != nil {
+	if err := ctrl.SetControllerReference(shim, runtimeClass, sr.Scheme); err != nil {
 		return nil, fmt.Errorf("failed to set controller reference: %w", err)
 	}
 
-	return rc, nil
+	return runtimeClass, nil
 }
 
 // handleDeletion deletes all possible child resources of a Shim. It will ignore NotFound errors.
@@ -450,7 +448,8 @@ func (sr *ShimReconciler) removeShimLabelsFromNodes(ctx context.Context, shim *k
 		return err
 	}
 
-	for _, node := range nodes.Items {
+	for i := range nodes.Items {
+		node := nodes.Items[i]
 		if _, ok := node.Labels[shim.Name]; ok {
 			log.Debug().Msgf("Removing label %s from node %s", shim.Name, node.Name)
 			delete(node.Labels, shim.Name)
@@ -468,12 +467,12 @@ func (sr *ShimReconciler) getNodeListFromShimsNodeSelctor(ctx context.Context, s
 	if shim.Spec.NodeSelector != nil {
 		err := sr.List(ctx, nodes, client.InNamespace(shim.Namespace), client.MatchingLabels(shim.Spec.NodeSelector))
 		if err != nil {
-			return &corev1.NodeList{}, err
+			return &corev1.NodeList{}, fmt.Errorf("failed to get node list: %w", err)
 		}
 	} else {
 		err := sr.List(ctx, nodes, client.InNamespace(shim.Namespace))
 		if err != nil {
-			return &corev1.NodeList{}, err
+			return &corev1.NodeList{}, fmt.Errorf("failed to get node list: %w", err)
 		}
 	}
 
@@ -485,19 +484,17 @@ func (sr *ShimReconciler) runtimeClassExists(ctx context.Context, shim *kwasmv1.
 	log := log.Ctx(ctx)
 
 	if shim.Spec.RuntimeClass.Name != "" {
-		rc, err := sr.getRuntimeClass(ctx, shim)
+		runtimeClass, err := sr.getRuntimeClass(ctx, shim)
 		if err != nil {
 			log.Debug().Msgf("No RuntimeClass '%s' found", shim.Spec.RuntimeClass.Name)
 
 			return false, err
-		} else {
-			log.Debug().Msgf("RuntimeClass found: %s", rc.Name)
-			return true, nil
 		}
-	} else {
-		log.Debug().Msg("Shim.Spec.RuntimeClass not defined")
-		return false, nil
+		log.Debug().Msgf("RuntimeClass found: %s", runtimeClass.Name)
+		return true, nil
 	}
+	log.Debug().Msg("Shim.Spec.RuntimeClass not defined")
+	return false, nil
 }
 
 // getRuntimeClass finds a RuntimeClass.
@@ -505,7 +502,7 @@ func (sr *ShimReconciler) getRuntimeClass(ctx context.Context, shim *kwasmv1.Shi
 	rc := nodev1.RuntimeClass{}
 	err := sr.Client.Get(ctx, types.NamespacedName{Name: shim.Spec.RuntimeClass.Name, Namespace: shim.Namespace}, &rc)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get runtimeClass: %w", err)
 	}
 	return &rc, nil
 }
@@ -515,7 +512,7 @@ func (sr *ShimReconciler) removeFinalizer(ctx context.Context, shim *kwasmv1.Shi
 	if controllerutil.ContainsFinalizer(shim, KwasmOperatorFinalizer) {
 		controllerutil.RemoveFinalizer(shim, KwasmOperatorFinalizer)
 		if err := sr.Client.Update(ctx, shim); err != nil {
-			return err
+			return fmt.Errorf("failed to remove finalizer: %w", err)
 		}
 	}
 	return nil
@@ -526,7 +523,7 @@ func (sr *ShimReconciler) ensureFinalizer(ctx context.Context, shim *kwasmv1.Shi
 	if !controllerutil.ContainsFinalizer(shim, KwasmOperatorFinalizer) {
 		controllerutil.AddFinalizer(shim, KwasmOperatorFinalizer)
 		if err := sr.Client.Update(ctx, shim); err != nil {
-			return err
+			return fmt.Errorf("failed to set finalizer: %w", err)
 		}
 	}
 	return nil
