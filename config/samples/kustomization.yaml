@@ -1,4 +1,7 @@
 ## Append samples of your project ##
 resources:
-- runtime_v1alpha1_shim.yaml
+- test_shim_lunatic.yaml
+- test_shim_slight.yaml
+- test_shim_spin.yaml
+- test_shim_wws.yaml
 #+kubebuilder:scaffold:manifestskustomizesamples

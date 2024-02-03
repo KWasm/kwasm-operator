@@ -98,7 +98,7 @@ build: manifests generate fmt vet golangci-build ## Build manager binary.
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
-	go run -ldflags "${LDFLAGS}" ./cmd/main.go
+	CONTROLLER_NAMESPACE="default" go run -ldflags "${LDFLAGS}" ./cmd/main.go
 
 # If you wish to build the manager image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
@@ -138,10 +138,6 @@ endif
 install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) apply -f -
 
-.PHONY: install-test-shims
-install-test-shims: ## Install test shims from ./hack/.
-	kubectl apply -f ./hack/*.yaml
-
 .PHONY: uninstall
 uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/crd | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
@@ -150,6 +146,14 @@ uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified 
 deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
 	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
 	$(KUSTOMIZE) build config/default | $(KUBECTL) apply -f -
+
+.PHONY: deploy-samples
+deploy-samples: ## Install test shims from ./hack/.
+	$(KUSTOMIZE) build config/samples | $(KUBECTL) apply -f -
+
+.PHONY: undeploy-samples
+undeploy-samples: ## Install test shims from ./hack/.
+	$(KUSTOMIZE) build config/samples | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
 .PHONY: undeploy
 undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
@@ -191,3 +195,14 @@ $(CONTROLLER_GEN): $(LOCALBIN)
 envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+
+.PHONY: create-test-cluster
+create-kind-cluster:
+	kind create cluster --config ./hack/kind.yaml --name kwasm
+
+.PHONY: kind-delete
+kind-delete:
+	kind delete cluster --name kwasm
+
+.PHONY: kind
+kind: create-kind-cluster install

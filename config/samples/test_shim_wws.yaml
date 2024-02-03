@@ -2,6 +2,12 @@ apiVersion: runtime.kwasm.sh/v1alpha1
 kind: Shim
 metadata:
   name: wws-v1
+  labels:
+    app.kubernetes.io/name: wws-v1
+    app.kubernetes.io/instance: wws-v1
+    app.kubernetes.io/part-of: kwasm-operator
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: kwasm-operator
 spec:
   nodeSelector:
     wws: "true"

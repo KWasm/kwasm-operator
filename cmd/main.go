@@ -18,6 +18,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -51,18 +52,18 @@ func init() {
 }
 
 // getWatchNamespace returns the Namespace the operator should be watching for changes
-// func getWatchNamespace() string {
-// 	// WatchNamespaceEnvVar is the constant for env variable WATCH_NAMESPACE
-// 	// which specifies the Namespace to watch.
-// 	// An empty value means the operator will fail to start.
-// 	watchNamespaceEnvVar := "CONTROLLER_NAMESPACE"
+func getWatchNamespace() string {
+	// WatchNamespaceEnvVar is the constant for env variable WATCH_NAMESPACE
+	// which specifies the Namespace to watch.
+	// An empty value means the operator will fail to start.
+	watchNamespaceEnvVar := "   "
 
-// 	ns, found := os.LookupEnv(watchNamespaceEnvVar)
-// 	if !found {
-// 		panic(fmt.Sprintf("env var '%s' must be set", watchNamespaceEnvVar))
-// 	}
-// 	return ns
-// }
+	ns, found := os.LookupEnv(watchNamespaceEnvVar)
+	if !found {
+		panic(fmt.Sprintf("env var '%s' must be set", watchNamespaceEnvVar))
+	}
+	return ns
+}
 
 func main() {
 	var metricsAddr string
@@ -118,6 +119,13 @@ func main() {
 	// 	setupLog.Error(err, "unable to create controller", "controller", "Node")
 	// 	os.Exit(1)
 	// }
+	if err = (&controller.JobReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Job")
+		os.Exit(1)
+	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
