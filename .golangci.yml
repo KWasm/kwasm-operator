@@ -13,23 +13,14 @@ issues:
       # Disable 'funlen' linter for test functions.
       # It's common for table-driven tests to be more than 60 characters long
       source: "^func Test"
-    - path: internal/pkg/admission/policy-server-error.go
+    - path: '(.+)_test\.go'
       linters:
-        - deadcode
-        - unused
-    - path: internal/pkg/admissionregistration/cert.go
+        - revive
+      text: "dot-imports: should not use dot imports"
+    - path: internal/controller/shim_controller.go
       linters:
-        - gocritic
-    - path: internal/pkg/admission/validating-webhook.go
-      linters:
-        - dupl
-    - path: internal/pkg/admission/mutating-webhook.go
-      linters:
-        - dupl
-    - path: pkg/apis/policies/v1alpha2/clusteradmissionpolicy_types.go
-      text: "got 'TypeMeta' want 'typeMeta'"
-    - path: pkg/apis/policies/v1alpha2/policyserver_types.go
-      text: "got 'TypeMeta' want 'typeMeta'"
+        - unparam
+      source: "ctrl.Result"
 
 linters:
   enable-all: true
@@ -60,6 +51,11 @@ linters:
     - ifshort # deprecated
 
 linters-settings:
+  wrapcheck:
+    ignoreSigs:
+      - ".Complete("
+      - "client.IgnoreNotFound("
+      - "fmt.Errorf("
   cyclop:
     max-complexity: 13
   nestif:

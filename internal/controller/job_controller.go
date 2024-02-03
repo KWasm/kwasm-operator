@@ -80,34 +80,34 @@ func (jr *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 
 	shimName := job.Labels["kwasm.sh/shimName"]
 
-	node, err := jr.getNode(ctx, job.Spec.Template.Spec.NodeName, req)
+	node, err := jr.getNode(ctx, job.Spec.Template.Spec.NodeName)
 	if err != nil {
-		return ctrl.Result{}, nil
+		return ctrl.Result{}, err
 	}
 
 	_, finishedType := jr.isJobFinished(job)
 	switch finishedType {
 	case "": // ongoing
 		log.Info().Msgf("Job %s is still Ongoing", job.Name)
-		// if err := jr.updateNodeLabels(ctx, node, shimName, "pending", req); err != nil {
+		// if err := jr.updateNodeLabels(ctx, node, shimName, "pending"); err != nil {
 		// 	log.Error().Msgf("Unable to update node label %s: %s", shimName, err)
 		// }
 		return ctrl.Result{}, nil
 	case batchv1.JobFailed:
 		log.Info().Msgf("Job %s is still failing...", job.Name)
-		if err := jr.updateNodeLabels(ctx, node, shimName, "failed", req); err != nil {
+		if err := jr.updateNodeLabels(ctx, node, shimName, "failed"); err != nil {
 			log.Error().Msgf("Unable to update node label %s: %s", shimName, err)
 		}
 		return ctrl.Result{}, nil
 	case batchv1.JobFailureTarget:
 		log.Info().Msgf("Job %s is about to fail", job.Name)
-		if err := jr.updateNodeLabels(ctx, node, shimName, "failed", req); err != nil {
+		if err := jr.updateNodeLabels(ctx, node, shimName, "failed"); err != nil {
 			log.Error().Msgf("Unable to update node label %s: %s", shimName, err)
 		}
 		return ctrl.Result{}, nil
 	case batchv1.JobComplete:
 		log.Info().Msgf("Job %s is Completed. Happy WASMing", job.Name)
-		if err := jr.updateNodeLabels(ctx, node, shimName, "provisioned", req); err != nil {
+		if err := jr.updateNodeLabels(ctx, node, shimName, "provisioned"); err != nil {
 			log.Error().Msgf("Unable to update node label %s: %s", shimName, err)
 		}
 		return ctrl.Result{}, nil
@@ -119,17 +119,17 @@ func (jr *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	return ctrl.Result{}, nil
 }
 
-func (jr *JobReconciler) updateNodeLabels(ctx context.Context, node *corev1.Node, shimName string, status string, req ctrl.Request) error {
+func (jr *JobReconciler) updateNodeLabels(ctx context.Context, node *corev1.Node, shimName string, status string) error {
 	node.Labels[shimName] = status
 
 	if err := jr.Update(ctx, node); err != nil {
-		return err
+		return fmt.Errorf("failed to update node labels: %w", err)
 	}
 
 	return nil
 }
 
-func (jr *JobReconciler) getNode(ctx context.Context, nodeName string, req ctrl.Request) (*corev1.Node, error) {
+func (jr *JobReconciler) getNode(ctx context.Context, nodeName string) (*corev1.Node, error) {
 	node := corev1.Node{}
 	if err := jr.Client.Get(ctx, types.NamespacedName{Name: nodeName}, &node); err != nil {
 		log.Err(err).Msg("Unable to fetch node")
