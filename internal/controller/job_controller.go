@@ -89,9 +89,6 @@ func (jr *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	switch finishedType {
 	case "": // ongoing
 		log.Info().Msgf("Job %s is still Ongoing", job.Name)
-		// if err := jr.updateNodeLabels(ctx, node, shimName, "pending"); err != nil {
-		// 	log.Error().Msgf("Unable to update node label %s: %s", shimName, err)
-		// }
 		return ctrl.Result{}, nil
 	case batchv1.JobFailed:
 		log.Info().Msgf("Job %s is still failing...", job.Name)
@@ -106,11 +103,22 @@ func (jr *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		}
 		return ctrl.Result{}, nil
 	case batchv1.JobComplete:
-		log.Info().Msgf("Job %s is Completed. Happy WASMing", job.Name)
-		if err := jr.updateNodeLabels(ctx, node, shimName, "provisioned"); err != nil {
-			log.Error().Msgf("Unable to update node label %s: %s", shimName, err)
+		log.Info().Msgf("Job %s is Completed.", job.Name)
+
+		installOrUninstall := job.Annotations["kwasm.sh/operation"]
+
+		switch installOrUninstall {
+		case INSTALL:
+			if err := jr.updateNodeLabels(ctx, node, shimName, "provisioned"); err != nil {
+				log.Error().Msgf("Unable to update node label %s: %s", shimName, err)
+			}
+		case UNINSTALL:
+			if err := jr.deleteNodeLabel(ctx, node, shimName); err != nil {
+				log.Error().Msgf("Unable to delete node label %s: %s", shimName, err)
+			}
 		}
-		return ctrl.Result{}, nil
+
+		return ctrl.Result{}, err
 	case batchv1.JobSuspended:
 		log.Info().Msgf("Job %s is suspended", job.Name)
 		return ctrl.Result{}, nil
@@ -124,6 +132,16 @@ func (jr *JobReconciler) updateNodeLabels(ctx context.Context, node *corev1.Node
 
 	if err := jr.Update(ctx, node); err != nil {
 		return fmt.Errorf("failed to update node labels: %w", err)
+	}
+
+	return nil
+}
+
+func (jr *JobReconciler) deleteNodeLabel(ctx context.Context, node *corev1.Node, shimName string) error {
+	delete(node.Labels, shimName)
+
+	if err := jr.Update(ctx, node); err != nil {
+		return fmt.Errorf("failed to delete node labels: %w", err)
 	}
 
 	return nil
