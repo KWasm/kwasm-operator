@@ -106,11 +106,20 @@ func (jr *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		}
 		return ctrl.Result{}, nil
 	case batchv1.JobComplete:
-		log.Info().Msgf("Job %s is Completed. Happy WASMing", job.Name)
-		if err := jr.updateNodeLabels(ctx, node, shimName, "provisioned"); err != nil {
-			log.Error().Msgf("Unable to update node label %s: %s", shimName, err)
+		log.Info().Msgf("Job %s is Completed.", job.Name)
+
+		installOrUninstall := job.Annotations["kwasm.sh/operation"]
+
+		switch installOrUninstall {
+		case "install":
+			if err := jr.updateNodeLabels(ctx, node, shimName, "provisioned"); err != nil {
+				log.Error().Msgf("Unable to update node label %s: %s", shimName, err)
+			}
+		case "uninstall":
+			jr.deleteNodeLabel(ctx, node, shimName)
 		}
-		return ctrl.Result{}, nil
+
+		return ctrl.Result{}, err
 	case batchv1.JobSuspended:
 		log.Info().Msgf("Job %s is suspended", job.Name)
 		return ctrl.Result{}, nil
@@ -124,6 +133,16 @@ func (jr *JobReconciler) updateNodeLabels(ctx context.Context, node *corev1.Node
 
 	if err := jr.Update(ctx, node); err != nil {
 		return fmt.Errorf("failed to update node labels: %w", err)
+	}
+
+	return nil
+}
+
+func (jr *JobReconciler) deleteNodeLabel(ctx context.Context, node *corev1.Node, shimName string) error {
+	delete(node.Labels, shimName)
+
+	if err := jr.Update(ctx, node); err != nil {
+		return fmt.Errorf("failed to delete node labels: %w", err)
 	}
 
 	return nil
