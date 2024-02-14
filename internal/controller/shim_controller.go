@@ -43,6 +43,8 @@ import (
 
 const (
 	KwasmOperatorFinalizer = "kwasm.sh/finalizer"
+	INSTALL                = "install"
+	UNINSTALL              = "uninstall"
 )
 
 // ShimReconciler reconciles a Shim object
@@ -220,7 +222,7 @@ func (sr *ShimReconciler) handleInstallShim(ctx context.Context, shim *kwasmv1.S
 				shimProvisioned := node.Labels[shim.Name] == "provisioned"
 				shimPending := node.Labels[shim.Name] == "pending"
 				if !shimProvisioned && !shimPending {
-					err := sr.deployJobOnNode(ctx, shim, node, "install")
+					err := sr.deployJobOnNode(ctx, shim, node, INSTALL)
 					if err != nil {
 						return ctrl.Result{}, err
 					}
@@ -252,23 +254,23 @@ func (sr *ShimReconciler) deployJobOnNode(ctx context.Context, shim *kwasmv1.Shi
 	var job *batchv1.Job
 
 	switch jobType {
-	case "install":
+	case INSTALL:
 		err := sr.updateNodeLabels(ctx, &node, shim, "pending")
 		if err != nil {
 			log.Error().Msgf("Unable to update node label %s: %s", shim.Name, err)
 		}
 
-		job, err = sr.createJobManifest(shim, &node, "install")
+		job, err = sr.createJobManifest(shim, &node, INSTALL)
 		if err != nil {
 			return err
 		}
-	case "uninstall":
-		err := sr.updateNodeLabels(ctx, &node, shim, "uninstall")
+	case UNINSTALL:
+		err := sr.updateNodeLabels(ctx, &node, shim, UNINSTALL)
 		if err != nil {
 			log.Error().Msgf("Unable to update node label %s: %s", shim.Name, err)
 		}
 
-		job, err = sr.createJobManifest(shim, &node, "uninstall")
+		job, err = sr.createJobManifest(shim, &node, UNINSTALL)
 		if err != nil {
 			return err
 		}
@@ -385,7 +387,7 @@ func (sr *ShimReconciler) createJobManifest(shim *kwasmv1.Shim, node *corev1.Nod
 		},
 	}
 
-	if operation == "install" {
+	if operation == INSTALL {
 		if err := ctrl.SetControllerReference(shim, job, sr.Scheme); err != nil {
 			return nil, fmt.Errorf("failed to set controller reference: %w", err)
 		}
@@ -460,7 +462,7 @@ func (sr *ShimReconciler) handleDeleteShim(ctx context.Context, shim *kwasmv1.Sh
 		node := nodes.Items[i]
 
 		if _, exists := node.Labels[shim.Name]; exists {
-			err := sr.deployJobOnNode(ctx, shim, node, "uninstall")
+			err := sr.deployJobOnNode(ctx, shim, node, UNINSTALL)
 			if client.IgnoreNotFound(err) != nil {
 				return err
 			}

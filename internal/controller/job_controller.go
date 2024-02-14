@@ -89,9 +89,6 @@ func (jr *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	switch finishedType {
 	case "": // ongoing
 		log.Info().Msgf("Job %s is still Ongoing", job.Name)
-		// if err := jr.updateNodeLabels(ctx, node, shimName, "pending"); err != nil {
-		// 	log.Error().Msgf("Unable to update node label %s: %s", shimName, err)
-		// }
 		return ctrl.Result{}, nil
 	case batchv1.JobFailed:
 		log.Info().Msgf("Job %s is still failing...", job.Name)
@@ -111,12 +108,14 @@ func (jr *JobReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		installOrUninstall := job.Annotations["kwasm.sh/operation"]
 
 		switch installOrUninstall {
-		case "install":
+		case INSTALL:
 			if err := jr.updateNodeLabels(ctx, node, shimName, "provisioned"); err != nil {
 				log.Error().Msgf("Unable to update node label %s: %s", shimName, err)
 			}
-		case "uninstall":
-			jr.deleteNodeLabel(ctx, node, shimName)
+		case UNINSTALL:
+			if err := jr.deleteNodeLabel(ctx, node, shimName); err != nil {
+				log.Error().Msgf("Unable to delete node label %s: %s", shimName, err)
+			}
 		}
 
 		return ctrl.Result{}, err

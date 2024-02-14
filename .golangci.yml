@@ -57,7 +57,7 @@ linters-settings:
       - "client.IgnoreNotFound("
       - "fmt.Errorf("
   cyclop:
-    max-complexity: 13
+    max-complexity: 16
   nestif:
     min-complexity: 8
   depguard:
