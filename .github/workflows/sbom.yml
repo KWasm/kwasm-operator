@@ -27,7 +27,7 @@ jobs:
         uses: anchore/sbom-action/download-syft@9fece9e20048ca9590af301449208b2b8861333b # v0.15.9
 
       - name: Install the crane command
-        uses: IAreKyleW00t/crane-installer@51d8c3cde789d00a49bcb1aaaf55c5f55fe60674 # v1.3
+        uses: IAreKyleW00t/crane-installer@d6a9037b75ba99acdf39956e2ad5201a611af540 # v1.3
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
