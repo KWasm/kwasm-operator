@@ -149,11 +149,18 @@ func main() {
 		setupLog.Info(fmt.Sprintf("INSTALLER_IMAGE=%s", installerImage))
 	}
 
+	kwasmDir := "/opt/kwasm"
+	if kwasmDirEnv, found := os.LookupEnv("KWASM_DIR"); found {
+		kwasmDir = kwasmDirEnv
+		setupLog.Info(fmt.Sprintf("KWASM_DIR=%s", kwasmDir))
+	}
+
 	if err = (&controllers.ProvisionerReconciler{
 		Client:         mgr.GetClient(),
 		Scheme:         mgr.GetScheme(),
 		AutoProvision:  autoProvision,
 		InstallerImage: installerImage,
+		KwasmDir:       kwasmDir,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Provisioner")
 		os.Exit(1)

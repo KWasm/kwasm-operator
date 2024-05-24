@@ -40,6 +40,7 @@ type ProvisionerReconciler struct {
 	Scheme         *runtime.Scheme
 	AutoProvision  bool
 	InstallerImage string
+	KwasmDir       string
 }
 
 const (
@@ -176,6 +177,10 @@ func (r *ProvisionerReconciler) deployJob(node *corev1.Node, req ctrl.Request) (
 							{
 								Name:  "NODE_ROOT",
 								Value: "/mnt/node-root",
+							},
+							{
+								Name:  "KWASM_DIR",
+								Value: r.KwasmDir,
 							},
 						},
 						VolumeMounts: []corev1.VolumeMount{
