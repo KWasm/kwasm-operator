@@ -16,6 +16,7 @@ import (
 
 var namespaceName = "kwasm-provisioner"
 var installerImage = "ghcr.io/kwasm/kwasm-node-installer:latest"
+var kwasmDir = "/opt/kwasm"
 
 var _ = Describe("ProvisionerController", func() {
 	Context("Kwasm Provisioner controller test", func() {
@@ -45,6 +46,7 @@ var _ = Describe("ProvisionerController", func() {
 				Client:         k8sClient,
 				Scheme:         k8sClient.Scheme(),
 				InstallerImage: installerImage,
+				KwasmDir:       kwasmDir,
 			}
 			err = k8sClient.Create(ctx, node)
 			Expect(err).NotTo(HaveOccurred())
@@ -92,6 +94,7 @@ var _ = Describe("ProvisionerController", func() {
 				Client:         k8sClient,
 				Scheme:         k8sClient.Scheme(),
 				InstallerImage: installerImage,
+				KwasmDir:       kwasmDir,
 			}
 
 			node = &corev1.Node{
@@ -121,6 +124,7 @@ var _ = Describe("ProvisionerController", func() {
 				Client:         k8sClient,
 				Scheme:         k8sClient.Scheme(),
 				InstallerImage: installerImage,
+				KwasmDir:       kwasmDir,
 				AutoProvision:  true,
 			}
 			node = &corev1.Node{
