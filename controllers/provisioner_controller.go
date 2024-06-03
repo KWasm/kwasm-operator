@@ -82,16 +82,16 @@ func (r *ProvisionerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	   Step 1: Add or remove the label.
 	*/
 
-	labelShouldBePresent := node.Annotations[addKWasmNodeLabelAnnotation] == "true"
-	labelIsPresent := node.Labels[nodeNameLabel] == node.Name
+	shouldProvision := node.Annotations[addKWasmNodeLabelAnnotation] == "true" || r.AutoProvision
+	provisioned := node.Labels[nodeNameLabel] == node.Name
 
-	if labelShouldBePresent == labelIsPresent && !r.AutoProvision {
+	if shouldProvision == provisioned {
 		// The desired state and actual state of the Node are the same.
 		// No further action is required by the operator at this moment.
-
 		return ctrl.Result{}, nil
 	}
-	if labelShouldBePresent || r.AutoProvision && !labelIsPresent {
+
+	if shouldProvision && !provisioned {
 		// If the label should be set but is not, set it.
 		if node.Labels == nil {
 			node.Labels = make(map[string]string)
@@ -108,7 +108,9 @@ func (r *ProvisionerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 			log.Err(err).Msg("Failed to create new Job " + req.Namespace + " Job.Name " + req.Name)
 			return ctrl.Result{}, fmt.Errorf("failed to create new job: %w", err)
 		}
-	} else if !r.AutoProvision {
+	}
+
+	if !shouldProvision && provisioned {
 		// If the label should not be set but is, remove it.
 		delete(node.Labels, nodeNameLabel)
 		log.Info().Msg("Label removed. Removing Job.")
