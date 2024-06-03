@@ -44,7 +44,7 @@ type ProvisionerReconciler struct {
 
 const (
 	addKWasmNodeLabelAnnotation = "kwasm.sh/kwasm-node"
-	nodeNameLabel               = "kwasm.sh/kwasm-provisioned"
+	provisionedLabel            = "kwasm.sh/kwasm-provisioned"
 )
 
 //+kubebuilder:rbac:groups=wasm.kwasm.sh,resources=provisioners,verbs=get;list;watch;create;update;patch;delete
@@ -83,7 +83,7 @@ func (r *ProvisionerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	*/
 
 	labelShouldBePresent := node.Annotations[addKWasmNodeLabelAnnotation] == "true"
-	labelIsPresent := node.Labels[nodeNameLabel] == node.Name
+	labelIsPresent := node.Labels[provisionedLabel] == "true"
 
 	if labelShouldBePresent == labelIsPresent && !r.AutoProvision {
 		// The desired state and actual state of the Node are the same.
@@ -96,7 +96,7 @@ func (r *ProvisionerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		if node.Labels == nil {
 			node.Labels = make(map[string]string)
 		}
-		node.Labels[nodeNameLabel] = node.Name
+		node.Labels[provisionedLabel] = "true"
 		log.Info().Msgf("Trying to Deploy on %s", node.Name)
 
 		dep, err := r.deployJob(node, req)
@@ -110,7 +110,7 @@ func (r *ProvisionerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		}
 	} else if !r.AutoProvision {
 		// If the label should not be set but is, remove it.
-		delete(node.Labels, nodeNameLabel)
+		delete(node.Labels, provisionedLabel)
 		log.Info().Msg("Label removed. Removing Job.")
 
 		err := r.Delete(ctx, &batchv1.Job{

@@ -64,7 +64,7 @@ var _ = Describe("ProvisionerController", func() {
 			// Verify that the Node has the expected label.
 			err = k8sClient.Get(ctx, types.NamespacedName{Name: nodeName}, node)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(node.Labels["kwasm.sh/kwasm-provisioned"]).To(Equal(nodeName))
+			Expect(node.Labels["kwasm.sh/kwasm-provisioned"]).To(Equal("true"))
 
 			// Call Reconcile again with the same Request object to ensure that the operator
 			// does not create a duplicate Job.
