@@ -59,7 +59,7 @@ jobs:
       - name: Build and push container image
         if: ${{ inputs.push-image }}
         id: build-image
-        uses: docker/build-push-action@2cdde995de11925a030ce8070c3d77a52ffcf1c0 # v5.3.0
+        uses: docker/build-push-action@16ebe778df0e7752d2cfcbd924afdbbd89c1a755 # v6.6.1
         with:
           context: .
           file: ./Dockerfile
