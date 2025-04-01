@@ -79,7 +79,7 @@ jobs:
             ghcr.io/${{ env.IMG_REPOSITORY_NAME }}/kwasm-operator:${SBOM_TAG}
 
       - name: Upload SBOMs as artifacts
-        uses: actions/upload-artifact@1746f4ab65b179e0ea60a494b83293b640dd5bba # v4.3.2
+        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
         with:
           name: sbom-${{ matrix.arch }}
           path: kwasm-operator-sbom-*
