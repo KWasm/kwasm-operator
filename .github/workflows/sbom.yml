@@ -30,7 +30,7 @@ jobs:
         uses: IAreKyleW00t/crane-installer@66858ae469ebd32ce731051d9c2bae9b811537e9 # v1.3
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@0d4c9c5ea7693da7b068278f7b52bda2a190a446 # v3.2.0
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
