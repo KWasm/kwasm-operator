@@ -79,6 +79,72 @@ var _ = Describe("ProvisionerController", func() {
 			Expect(job).NotTo(BeNil())
 		})
 
+		It("should reconcile the node and create a job when label is set", func() {
+			var nodeName = "test-node-with-label"
+			nodeNameNamespaced := types.NamespacedName{Name: nodeName, Namespace: ""}
+			node = &corev1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: nodeName,
+					Labels: map[string]string{
+						"kwasm.sh/kwasm-node": "true",
+					},
+				},
+			}
+
+			kwasmReconciler := &controllers.ProvisionerReconciler{
+				Client:         k8sClient,
+				Scheme:         k8sClient.Scheme(),
+				InstallerImage: installerImage,
+			}
+			err = k8sClient.Create(ctx, node)
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = kwasmReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: nodeNameNamespaced,
+			})
+			Expect(err).To(Not(HaveOccurred()))
+
+			// Verify that the Node has the expected provisioned label.
+			err = k8sClient.Get(ctx, types.NamespacedName{Name: nodeName}, node)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(node.Labels["kwasm.sh/kwasm-provisioned"]).To(Equal(nodeName))
+
+			// Check that the job was created.
+			job = &batchv1.Job{}
+			err = k8sClient.Get(ctx, types.NamespacedName{Name: nodeName + "-provision-kwasm", Namespace: namespaceName}, job)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(job).NotTo(BeNil())
+		})
+
+		It("should ignore Nodes with no annotation or label", func() {
+			nodeName := "test-node-without-annotation-or-label"
+			nodeNameNamespaced := types.NamespacedName{Name: nodeName, Namespace: ""}
+
+			kwasmReconciler := &controllers.ProvisionerReconciler{
+				Client:         k8sClient,
+				Scheme:         k8sClient.Scheme(),
+				InstallerImage: installerImage,
+			}
+
+			node = &corev1.Node{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: nodeName,
+				},
+			}
+			err := k8sClient.Create(ctx, node)
+			Expect(err).NotTo(HaveOccurred())
+
+			_, err = kwasmReconciler.Reconcile(ctx, reconcile.Request{
+				NamespacedName: nodeNameNamespaced,
+			})
+			Expect(err).To(Not(HaveOccurred()))
+
+			// Check that the job was NOT created.
+			job = &batchv1.Job{}
+			err = k8sClient.Get(ctx, types.NamespacedName{Name: nodeName + "-provision-kwasm", Namespace: namespaceName}, job)
+			Expect(err).To(HaveOccurred())
+		})
+
 		It("should not set autoProvision to true by default", func() {
 			r := controllers.ProvisionerReconciler{}.AutoProvision
 			Expect(r).To(BeFalse())

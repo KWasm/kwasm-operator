@@ -82,7 +82,7 @@ func (r *ProvisionerReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	   Step 1: Add or remove the label.
 	*/
 
-	labelShouldBePresent := node.Annotations[addKWasmNodeLabelAnnotation] == "true"
+	labelShouldBePresent := node.Annotations[addKWasmNodeLabelAnnotation] == "true" || node.Labels[addKWasmNodeLabelAnnotation] == "true"
 	labelIsPresent := node.Labels[nodeNameLabel] == node.Name
 
 	if labelShouldBePresent == labelIsPresent && !r.AutoProvision {
