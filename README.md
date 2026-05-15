@@ -1,4 +1,13 @@
 # kwasm-operator
+
+> 🏁 **KWasm has been retired.** This was a fun exploration of WebAssembly on Kubernetes. Thanks to everyone who starred, used, or contributed!
+>
+> The `kwasm.sh` domain will continue to resolve until **January 20, 2027**.
+>
+> For current Wasm-on-Kubernetes work, check out [spinframework/runtime-class-manager](https://github.com/spinframework/runtime-class-manager).
+>
+> The repo is archived and will not receive updates.
+
 This Kubernetes Operators uses [KWasm/kwasm-node-installer](https://github.com/KWasm/kwasm-node-installer) to add WebAssembly support to your Kubernetes Nodes. It works with local and managed cloud K8s distributions based on Ubuntu/Debian with Containerd, including [MiniKube, MicroK8s, AKS, GKE, and EKS](https://github.com/KWasm/kwasm-node-installer#supported-kubernetes-distributions).
 
 > **Warning**
